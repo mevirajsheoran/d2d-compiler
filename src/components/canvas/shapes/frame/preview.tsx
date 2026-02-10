@@ -14,11 +14,10 @@ export function FramePreview({ x, y, w, h }: FramePreviewProps) {
         top: y,
         width: w,
         height: h,
-        border: "2px dashed hsl(var(--primary))",
-        backgroundColor: "hsl(var(--primary) / 0.05)",
       }}
     >
-      <div className="absolute -top-5 left-0 text-xs text-primary">
+      <div className="absolute inset-0 border-2 border-dashed border-blue-500 bg-blue-500/5 rounded-sm" />
+      <div className="absolute -top-5 left-0 text-xs text-blue-500 font-medium">
         New Frame
       </div>
     </div>

@@ -1,4 +1,3 @@
-// src/components/canvas/shapes/frame/index.tsx
 "use client";
 
 import { useState } from "react";
@@ -17,7 +16,6 @@ interface FrameProps {
 export function Frame({ shape, isSelected }: FrameProps) {
   const [isExporting, setIsExporting] = useState(false);
 
-  // Get all shapes from Redux
   const shapesState = useAppSelector((state) => state.shapes);
   const allShapes: Shape[] = Object.values(shapesState.shapes.entities).filter(
     (s): s is Shape => s !== undefined
@@ -25,17 +23,12 @@ export function Frame({ shape, isSelected }: FrameProps) {
 
   const handleExport = async () => {
     if (isExporting) return;
-
     setIsExporting(true);
 
     try {
-      // Generate snapshot
       const blob = await generateFrameSnapshot(shape, allShapes);
-
-      // Download file
       const fileName = `Frame-${shape.frameNumber || 1}.png`;
       downloadBlob(blob, fileName);
-
       toast.success(`Exported ${fileName}`);
     } catch (error) {
       console.error("Export failed:", error);
@@ -53,27 +46,39 @@ export function Frame({ shape, isSelected }: FrameProps) {
         top: shape.y,
         width: shape.w,
         height: shape.h,
-        backgroundColor: shape.fill || "rgba(255, 255, 255, 0.02)",
-        border: `${shape.strokeWidth || 1}px solid ${
-          shape.stroke || "hsl(var(--border))"
-        }`,
       }}
     >
-      {/* Frame label */}
+      {/* Frame background - visible on both themes */}
       <div
-        className="absolute -top-6 left-0 text-xs font-medium text-muted-foreground select-none"
-        style={{ pointerEvents: "none" }}
-      >
-        Frame {shape.frameNumber || 1}
+        className="absolute inset-0 bg-white/[0.03] dark:bg-white/[0.05] border border-dashed border-gray-400 dark:border-gray-600"
+        style={{
+          borderRadius: 2,
+        }}
+      />
+
+      {/* Dot grid inside frame */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-20"
+        style={{
+          backgroundImage: "radial-gradient(circle, currentColor 0.5px, transparent 0.5px)",
+          backgroundSize: "16px 16px",
+        }}
+      />
+
+      {/* Frame label */}
+      <div className="absolute -top-6 left-0 flex items-center gap-2 select-none pointer-events-none">
+        <span className="text-xs font-medium text-muted-foreground bg-background/80 px-1.5 py-0.5 rounded">
+          Frame {shape.frameNumber || 1}
+        </span>
       </div>
 
-      {/* Export button - only show when selected */}
+      {/* Export button - only when selected */}
       {isSelected && (
-        <div className="absolute -top-8 right-0 flex gap-1">
+        <div className="absolute -top-9 right-0 flex gap-1">
           <Button
             size="sm"
             variant="secondary"
-            className="h-6 px-2 text-xs"
+            className="h-7 px-3 text-xs shadow-md"
             onClick={handleExport}
             disabled={isExporting}
           >
@@ -85,7 +90,7 @@ export function Frame({ shape, isSelected }: FrameProps) {
             ) : (
               <>
                 <Download className="h-3 w-3 mr-1" />
-                Export
+                Export PNG
               </>
             )}
           </Button>

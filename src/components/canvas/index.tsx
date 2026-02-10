@@ -14,6 +14,7 @@ import { LinePreview } from "./shapes/line/preview";
 import { StrokePreview } from "./shapes/stroke/preview";
 import { cn } from "@/lib/utils";
 
+
 export function InfiniteCanvas() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
@@ -33,6 +34,7 @@ export function InfiniteCanvas() {
     getDraftShape,
     getFreeDrawPoints,
     startResize,
+    startLineEndpointDrag,
   } = useCanvas();
 
   // Auto-save
@@ -105,8 +107,11 @@ export function InfiniteCanvas() {
             />
           ))}
 
-          {/* Selection overlay */}
-          <SelectionOverlay onResizeStart={startResize} />
+          {/* Selection overlay with both resize and line endpoint handlers */}
+          <SelectionOverlay
+            onResizeStart={startResize}
+            onLineEndpointDrag={startLineEndpointDrag}
+          />
 
           {/* Draft previews */}
           {draftShape?.type === "rect" && (

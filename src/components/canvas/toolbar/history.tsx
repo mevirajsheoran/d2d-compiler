@@ -8,18 +8,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAppSelector, useAppDispatch } from "@/redux/store";
+import { undo, redo } from "@/redux/slice/shapes";
 
 export function HistoryButtons() {
-  // TODO: Implement undo/redo with state history
-  const canUndo = false;
-  const canRedo = false;
+  const dispatch = useAppDispatch();
+  const pastLength = useAppSelector((state) => state.shapes.past.length);
+  const futureLength = useAppSelector((state) => state.shapes.future.length);
+
+  const canUndo = pastLength > 0;
+  const canRedo = futureLength > 0;
 
   const handleUndo = () => {
-    console.log("Undo");
+    if (canUndo) dispatch(undo());
   };
 
   const handleRedo = () => {
-    console.log("Redo");
+    if (canRedo) dispatch(redo());
   };
 
   return (

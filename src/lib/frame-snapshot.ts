@@ -13,23 +13,22 @@ import {
 } from "@/redux/slice/shapes";
 
 /**
- * Check if a shape is inside a frame's boundaries
+ * Check if a shape overlaps with a frame's boundaries
+ * Uses "partially inside" instead of "fully inside" for better results
  */
 export const isShapeInsideFrame = (
   shape: Shape,
   frame: FrameShape
 ): boolean => {
-  // Skip the frame itself
   if (shape.id === frame.id) return false;
+  if (shape.type === "frame") return false; // Don't include nested frames
 
-  // Get shape bounds based on type
   let shapeBounds: { x: number; y: number; w: number; h: number };
 
   switch (shape.type) {
-    case "frame":
     case "rect":
     case "ellipse": {
-      const s = shape as FrameShape | RectShape | EllipseShape;
+      const s = shape as RectShape | EllipseShape;
       shapeBounds = { x: s.x, y: s.y, w: s.w, h: s.h };
       break;
     }
@@ -41,7 +40,12 @@ export const isShapeInsideFrame = (
       const minY = Math.min(s.startY, s.endY);
       const maxX = Math.max(s.startX, s.endX);
       const maxY = Math.max(s.startY, s.endY);
-      shapeBounds = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+      shapeBounds = {
+        x: minX,
+        y: minY,
+        w: Math.max(maxX - minX, 1),
+        h: Math.max(maxY - minY, 1),
+      };
       break;
     }
 
@@ -56,14 +60,16 @@ export const isShapeInsideFrame = (
     case "freedraw": {
       const s = shape as FreeDrawShape;
       if (!s.points || s.points.length === 0) return false;
-
       const xs = s.points.map((p) => p.x);
       const ys = s.points.map((p) => p.y);
       const minX = Math.min(...xs);
       const minY = Math.min(...ys);
-      const maxX = Math.max(...xs);
-      const maxY = Math.max(...ys);
-      shapeBounds = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+      shapeBounds = {
+        x: minX,
+        y: minY,
+        w: Math.max(Math.max(...xs) - minX, 1),
+        h: Math.max(Math.max(...ys) - minY, 1),
+      };
       break;
     }
 
@@ -71,53 +77,44 @@ export const isShapeInsideFrame = (
       return false;
   }
 
-  // Check if shape is inside frame
-  const frameLeft = frame.x;
-  const frameRight = frame.x + frame.w;
-  const frameTop = frame.y;
-  const frameBottom = frame.y + frame.h;
+  // Check overlap (shape center is inside frame)
+  const shapeCenterX = shapeBounds.x + shapeBounds.w / 2;
+  const shapeCenterY = shapeBounds.y + shapeBounds.h / 2;
 
-  const shapeLeft = shapeBounds.x;
-  const shapeRight = shapeBounds.x + shapeBounds.w;
-  const shapeTop = shapeBounds.y;
-  const shapeBottom = shapeBounds.y + shapeBounds.h;
-
-  // Shape must be fully inside frame
   return (
-    shapeLeft >= frameLeft &&
-    shapeRight <= frameRight &&
-    shapeTop >= frameTop &&
-    shapeBottom <= frameBottom
+    shapeCenterX >= frame.x &&
+    shapeCenterX <= frame.x + frame.w &&
+    shapeCenterY >= frame.y &&
+    shapeCenterY <= frame.y + frame.h
   );
 };
 
 /**
  * Generate a PNG snapshot of a frame and its contents
+ * Draws shapes with BLACK stroke on WHITE background for visibility
  */
 export const generateFrameSnapshot = async (
   frame: FrameShape,
   allShapes: Shape[]
 ): Promise<Blob> => {
-  // Create offscreen canvas
   const canvas = document.createElement("canvas");
   const padding = 20;
+  const scale = 2; // 2x for higher quality
 
-  canvas.width = frame.w + padding * 2;
-  canvas.height = frame.h + padding * 2;
+  canvas.width = (frame.w + padding * 2) * scale;
+  canvas.height = (frame.h + padding * 2) * scale;
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Failed to get canvas context");
-  }
+  if (!ctx) throw new Error("Failed to get canvas context");
 
-  // Save initial state
-  ctx.save();
+  // Scale for high DPI
+  ctx.scale(scale, scale);
 
   // White background
   ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, frame.w + padding * 2, frame.h + padding * 2);
 
-  // Optional: Draw frame border
+  // Light frame border
   ctx.strokeStyle = "#E5E7EB";
   ctx.lineWidth = 1;
   ctx.strokeRect(padding, padding, frame.w, frame.h);
@@ -127,25 +124,43 @@ export const generateFrameSnapshot = async (
     isShapeInsideFrame(shape, frame)
   );
 
+  console.log(`[Export] Found ${shapesInFrame.length} shapes in frame`);
+
+  // Calculate offset (frame origin → canvas origin)
+  const offsetX = padding - frame.x;
+  const offsetY = padding - frame.y;
+
+  // Helper: Convert white/light strokes to dark for export
+  const getExportColor = (color: string): string => {
+    if (!color) return "#000000";
+    // If stroke is white or very light, make it dark for white background
+    const isLight =
+      color === "#ffffff" ||
+      color === "#fff" ||
+      color === "white" ||
+      color === "#FFFFFF" ||
+      color.match(/^rgba?\(255,\s*255,\s*255/);
+    return isLight ? "#000000" : color;
+  };
+
   // Draw each shape
   for (const shape of shapesInFrame) {
     ctx.save();
 
-    // Calculate relative position (offset from frame origin)
-    const offsetX = padding - frame.x;
-    const offsetY = padding - frame.y;
+    const strokeColor = getExportColor(shape.stroke);
+    const fillColor = shape.fill ? getExportColor(shape.fill) : "transparent";
 
     switch (shape.type) {
       case "rect": {
         const s = shape as RectShape;
-        ctx.fillStyle = s.fill || "transparent";
-        ctx.strokeStyle = s.stroke || "#000000";
-        ctx.lineWidth = s.strokeWidth || 2;
-
         const x = s.x + offsetX;
         const y = s.y + offsetY;
 
-        if (s.fill && s.fill !== "transparent") {
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = s.strokeWidth || 2;
+
+        if (fillColor && fillColor !== "transparent") {
+          ctx.fillStyle = fillColor;
           ctx.fillRect(x, y, s.w, s.h);
         }
         ctx.strokeRect(x, y, s.w, s.h);
@@ -154,19 +169,17 @@ export const generateFrameSnapshot = async (
 
       case "ellipse": {
         const s = shape as EllipseShape;
-        ctx.fillStyle = s.fill || "transparent";
-        ctx.strokeStyle = s.stroke || "#000000";
-        ctx.lineWidth = s.strokeWidth || 2;
-
         const centerX = s.x + s.w / 2 + offsetX;
         const centerY = s.y + s.h / 2 + offsetY;
-        const radiusX = s.w / 2;
-        const radiusY = s.h / 2;
+
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = s.strokeWidth || 2;
 
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.ellipse(centerX, centerY, s.w / 2, s.h / 2, 0, 0, Math.PI * 2);
 
-        if (s.fill && s.fill !== "transparent") {
+        if (fillColor && fillColor !== "transparent") {
+          ctx.fillStyle = fillColor;
           ctx.fill();
         }
         ctx.stroke();
@@ -175,8 +188,9 @@ export const generateFrameSnapshot = async (
 
       case "line": {
         const s = shape as LineShape;
-        ctx.strokeStyle = s.stroke || "#000000";
+        ctx.strokeStyle = strokeColor;
         ctx.lineWidth = s.strokeWidth || 2;
+        ctx.lineCap = "round";
 
         ctx.beginPath();
         ctx.moveTo(s.startX + offsetX, s.startY + offsetY);
@@ -187,61 +201,70 @@ export const generateFrameSnapshot = async (
 
       case "arrow": {
         const s = shape as ArrowShape;
-        ctx.strokeStyle = s.stroke || "#000000";
-        ctx.lineWidth = s.strokeWidth || 2;
-
         const startX = s.startX + offsetX;
         const startY = s.startY + offsetY;
         const endX = s.endX + offsetX;
         const endY = s.endY + offsetY;
 
-        // Draw line
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = s.strokeWidth || 2;
+        ctx.lineCap = "round";
+
+        // Line
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        // Draw arrowhead
+        // Arrowhead
         const angle = Math.atan2(endY - startY, endX - startX);
-        const arrowLength = 15;
+        const headLength = 15;
 
+        ctx.fillStyle = strokeColor;
         ctx.beginPath();
         ctx.moveTo(endX, endY);
         ctx.lineTo(
-          endX - arrowLength * Math.cos(angle - Math.PI / 6),
-          endY - arrowLength * Math.sin(angle - Math.PI / 6)
+          endX - headLength * Math.cos(angle - Math.PI / 6),
+          endY - headLength * Math.sin(angle - Math.PI / 6)
         );
-        ctx.moveTo(endX, endY);
         ctx.lineTo(
-          endX - arrowLength * Math.cos(angle + Math.PI / 6),
-          endY - arrowLength * Math.sin(angle + Math.PI / 6)
+          endX - headLength * Math.cos(angle + Math.PI / 6),
+          endY - headLength * Math.sin(angle + Math.PI / 6)
         );
-        ctx.stroke();
+        ctx.closePath();
+        ctx.fill();
         break;
       }
 
       case "text": {
         const s = shape as TextShape;
-        ctx.font = `${s.fontWeight || "normal"} ${s.fontSize || 16}px ${
-          s.fontFamily || "Arial"
-        }`;
-        ctx.fillStyle = s.fontColor || "#000000";
-        ctx.textBaseline = "top";
-
         const x = s.x + offsetX;
         const y = s.y + offsetY;
 
-        // Handle text decorations
-        ctx.fillText(s.text, x, y);
+        ctx.font = `${s.fontStyle || "normal"} ${s.fontWeight || 400} ${s.fontSize || 16}px ${s.fontFamily || "Arial, sans-serif"}`;
+        ctx.fillStyle = getExportColor(s.fill || "#ffffff");
+        ctx.textBaseline = "top";
 
-        if (s.underline) {
-          const textWidth = ctx.measureText(s.text).width;
-          ctx.beginPath();
-          ctx.moveTo(x, y + s.fontSize + 2);
-          ctx.lineTo(x + textWidth, y + s.fontSize + 2);
-          ctx.strokeStyle = s.fontColor || "#000000";
-          ctx.lineWidth = 1;
-          ctx.stroke();
+        // Handle multi-line text
+        const lines = (s.text || "").split("\n");
+        const lineHeight = s.fontSize * (s.lineHeight || 1.2);
+
+        lines.forEach((line, i) => {
+          ctx.fillText(line, x, y + i * lineHeight);
+        });
+
+        // Underline
+        if (s.textDecoration === "underline") {
+          lines.forEach((line, i) => {
+            const textWidth = ctx.measureText(line).width;
+            const lineY = y + (i + 1) * lineHeight;
+            ctx.strokeStyle = getExportColor(s.fill || "#ffffff");
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, lineY);
+            ctx.lineTo(x + textWidth, lineY);
+            ctx.stroke();
+          });
         }
         break;
       }
@@ -250,7 +273,7 @@ export const generateFrameSnapshot = async (
         const s = shape as FreeDrawShape;
         if (!s.points || s.points.length < 2) break;
 
-        ctx.strokeStyle = s.stroke || "#000000";
+        ctx.strokeStyle = strokeColor;
         ctx.lineWidth = s.strokeWidth || 2;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
@@ -269,18 +292,12 @@ export const generateFrameSnapshot = async (
     ctx.restore();
   }
 
-  // Restore canvas state
-  ctx.restore();
-
   // Convert to blob
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("Failed to create image blob"));
-        }
+        if (blob) resolve(blob);
+        else reject(new Error("Failed to create image blob"));
       },
       "image/png",
       1.0
@@ -294,15 +311,11 @@ export const generateFrameSnapshot = async (
 export const downloadBlob = (blob: Blob, fileName: string): void => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-
   link.href = url;
   link.download = fileName;
-
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-
-  // Cleanup
   URL.revokeObjectURL(url);
 };
 
@@ -312,10 +325,7 @@ export const downloadBlob = (blob: Blob, fileName: string): void => {
 export const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      resolve(base64);
-    };
+    reader.onloadend = () => resolve(reader.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });

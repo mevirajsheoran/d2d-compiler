@@ -26,6 +26,9 @@ import {
   FrameShape,
   RectShape,
   EllipseShape,
+  undo,
+  redo,
+  saveHistorySnapshot,
 } from "@/redux/slice/shapes";
 import {
   panStart,
@@ -93,7 +96,10 @@ export function useCanvas() {
   }, [shapesState.selected]);
 
   // Shape entities for quick lookup
-  const shapeEntities = useMemo(() => shapesState.shapes.entities, [shapesState.shapes.entities]);
+  const shapeEntities = useMemo(
+    () => shapesState.shapes.entities,
+    [shapesState.shapes.entities]
+  );
 
   // Check if text is selected
   const hasSelectedText = useMemo(() => {
@@ -130,6 +136,12 @@ export function useCanvas() {
   const erasedShapesRef = useRef<Set<string>>(new Set());
   const resizingRef = useRef(false);
   const resizingDataRef = useRef<ResizingData | null>(null);
+
+  // Line endpoint drag
+  const lineEndpointDragRef = useRef<{
+    shapeId: string;
+    endpoint: "start" | "end";
+  } | null>(null);
 
   // Animation refs
   const freehandAnimationRef = useRef<number | null>(null);
@@ -240,7 +252,10 @@ export function useCanvas() {
 
         case "text": {
           const textShape = shape as TextShape;
-          const textWidth = Math.max(100, textShape.text.length * textShape.fontSize * 0.6);
+          const textWidth = Math.max(
+            100,
+            textShape.text.length * textShape.fontSize * 0.6
+          );
           const textHeight = textShape.fontSize * 1.5;
           return (
             point.x >= textShape.x - 8 &&
@@ -296,7 +311,8 @@ export function useCanvas() {
     }
 
     if (drawingRef.current) {
-      freehandAnimationRef.current = window.requestAnimationFrame(freehandTick);
+      freehandAnimationRef.current =
+        window.requestAnimationFrame(freehandTick);
     }
   }, [requestRender]);
 
@@ -309,7 +325,6 @@ export function useCanvas() {
       e.preventDefault();
 
       if (e.ctrlKey || e.metaKey) {
-        // Zoom
         dispatch(
           wheelZoom({
             deltaY: e.deltaY,
@@ -317,7 +332,6 @@ export function useCanvas() {
           })
         );
       } else {
-        // Pan
         dispatch(wheelPan({ dx: -e.deltaX, dy: -e.deltaY }));
       }
     },
@@ -364,6 +378,9 @@ export function useCanvas() {
               dispatch(selectShape(hitShape.id));
             }
 
+            // Save history before moving
+            dispatch(saveHistorySnapshot());
+
             // Start moving
             movingRef.current = true;
             moveStartRef.current = world;
@@ -375,7 +392,9 @@ export function useCanvas() {
               const shape = shapeEntities[id];
               if (!shape) return;
 
-              if (["frame", "rect", "ellipse", "text"].includes(shape.type)) {
+              if (
+                ["frame", "rect", "ellipse", "text"].includes(shape.type)
+              ) {
                 initialShapePositionsRef.current.set(id, {
                   x: (shape as any).x,
                   y: (shape as any).y,
@@ -385,7 +404,10 @@ export function useCanvas() {
                 initialShapePositionsRef.current.set(id, {
                   points: [...freeShape.points],
                 });
-              } else if (shape.type === "arrow" || shape.type === "line") {
+              } else if (
+                shape.type === "arrow" ||
+                shape.type === "line"
+              ) {
                 const lineShape = shape as ArrowShape | LineShape;
                 initialShapePositionsRef.current.set(id, {
                   startX: lineShape.startX,
@@ -419,7 +441,9 @@ export function useCanvas() {
         }
 
         // DRAWING TOOLS
-        else if (["frame", "rect", "ellipse", "arrow", "line"].includes(currentTool)) {
+        else if (
+          ["frame", "rect", "ellipse", "arrow", "line"].includes(currentTool)
+        ) {
           drawingRef.current = true;
           draftShapeRef.current = {
             type: currentTool as DraftShape["type"],
@@ -436,7 +460,8 @@ export function useCanvas() {
           drawingRef.current = true;
           freePointsRef.current = [world];
           lastFreehandFrameRef.current = performance.now();
-          freehandAnimationRef.current = window.requestAnimationFrame(freehandTick);
+          freehandAnimationRef.current =
+            window.requestAnimationFrame(freehandTick);
           requestRender();
         }
       }
@@ -458,69 +483,104 @@ export function useCanvas() {
       const world = getLocalPoint(e);
 
       // Panning
-      if (viewport.mode === "panning" || viewport.mode === "shiftPanning") {
+      if (
+        viewport.mode === "panning" ||
+        viewport.mode === "shiftPanning"
+      ) {
         schedulePanMove({ x: e.clientX, y: e.clientY });
         return;
       }
 
-      // Resizing
-      if (resizingRef.current && resizingDataRef.current) {
-        const { shapeId, corner, initialBounds } = resizingDataRef.current;
-        let newBounds = { ...initialBounds };
+      // Resizing / Line endpoint dragging
+      if (resizingRef.current) {
+        // Line/Arrow endpoint drag
+        if (lineEndpointDragRef.current) {
+          const { shapeId, endpoint } = lineEndpointDragRef.current;
 
-        switch (corner) {
-          case "nw":
-            newBounds.w = initialBounds.w + (initialBounds.x - world.x);
-            newBounds.h = initialBounds.h + (initialBounds.y - world.y);
-            newBounds.x = world.x;
-            newBounds.y = world.y;
-            break;
-          case "n":
-            newBounds.h = initialBounds.h + (initialBounds.y - world.y);
-            newBounds.y = world.y;
-            break;
-          case "ne":
-            newBounds.w = world.x - initialBounds.x;
-            newBounds.h = initialBounds.h + (initialBounds.y - world.y);
-            newBounds.y = world.y;
-            break;
-          case "e":
-            newBounds.w = world.x - initialBounds.x;
-            break;
-          case "se":
-            newBounds.w = world.x - initialBounds.x;
-            newBounds.h = world.y - initialBounds.y;
-            break;
-          case "s":
-            newBounds.h = world.y - initialBounds.y;
-            break;
-          case "sw":
-            newBounds.w = initialBounds.w + (initialBounds.x - world.x);
-            newBounds.h = world.y - initialBounds.y;
-            newBounds.x = world.x;
-            break;
-          case "w":
-            newBounds.w = initialBounds.w + (initialBounds.x - world.x);
-            newBounds.x = world.x;
-            break;
+          if (endpoint === "start") {
+            dispatch(
+              updateShape({
+                id: shapeId,
+                patch: { startX: world.x, startY: world.y },
+              })
+            );
+          } else {
+            dispatch(
+              updateShape({
+                id: shapeId,
+                patch: { endX: world.x, endY: world.y },
+              })
+            );
+          }
+          return;
         }
 
-        // Ensure minimum size
-        if (newBounds.w < 10) newBounds.w = 10;
-        if (newBounds.h < 10) newBounds.h = 10;
+        // Standard resize (rect, ellipse, frame, etc.)
+        if (resizingDataRef.current) {
+          const { shapeId, corner, initialBounds } =
+            resizingDataRef.current;
+          let newBounds = { ...initialBounds };
 
-        dispatch(
-          updateShape({
-            id: shapeId,
-            patch: {
-              x: newBounds.x,
-              y: newBounds.y,
-              w: Math.abs(newBounds.w),
-              h: Math.abs(newBounds.h),
-            },
-          })
-        );
-        return;
+          switch (corner) {
+            case "nw":
+              newBounds.w =
+                initialBounds.w + (initialBounds.x - world.x);
+              newBounds.h =
+                initialBounds.h + (initialBounds.y - world.y);
+              newBounds.x = world.x;
+              newBounds.y = world.y;
+              break;
+            case "n":
+              newBounds.h =
+                initialBounds.h + (initialBounds.y - world.y);
+              newBounds.y = world.y;
+              break;
+            case "ne":
+              newBounds.w = world.x - initialBounds.x;
+              newBounds.h =
+                initialBounds.h + (initialBounds.y - world.y);
+              newBounds.y = world.y;
+              break;
+            case "e":
+              newBounds.w = world.x - initialBounds.x;
+              break;
+            case "se":
+              newBounds.w = world.x - initialBounds.x;
+              newBounds.h = world.y - initialBounds.y;
+              break;
+            case "s":
+              newBounds.h = world.y - initialBounds.y;
+              break;
+            case "sw":
+              newBounds.w =
+                initialBounds.w + (initialBounds.x - world.x);
+              newBounds.h = world.y - initialBounds.y;
+              newBounds.x = world.x;
+              break;
+            case "w":
+              newBounds.w =
+                initialBounds.w + (initialBounds.x - world.x);
+              newBounds.x = world.x;
+              break;
+          }
+
+          // Ensure minimum size
+          if (newBounds.w < 10) newBounds.w = 10;
+          if (newBounds.h < 10) newBounds.h = 10;
+
+          dispatch(
+            updateShape({
+              id: shapeId,
+              patch: {
+                x: newBounds.x,
+                y: newBounds.y,
+                w: Math.abs(newBounds.w),
+                h: Math.abs(newBounds.h),
+              },
+            })
+          );
+          return;
+        }
       }
 
       // Erasing
@@ -533,7 +593,11 @@ export function useCanvas() {
       }
 
       // Moving shapes
-      if (movingRef.current && moveStartRef.current && currentTool === "select") {
+      if (
+        movingRef.current &&
+        moveStartRef.current &&
+        currentTool === "select"
+      ) {
         const deltaX = world.x - moveStartRef.current.x;
         const deltaY = world.y - moveStartRef.current.y;
 
@@ -541,7 +605,9 @@ export function useCanvas() {
           const shape = shapeEntities[id];
           if (!shape) return;
 
-          if (["frame", "rect", "ellipse", "text"].includes(shape.type)) {
+          if (
+            ["frame", "rect", "ellipse", "text"].includes(shape.type)
+          ) {
             dispatch(
               updateShape({
                 id,
@@ -557,7 +623,10 @@ export function useCanvas() {
               y: p.y + deltaY,
             }));
             dispatch(updateShape({ id, patch: { points: newPoints } }));
-          } else if (shape.type === "arrow" || shape.type === "line") {
+          } else if (
+            shape.type === "arrow" ||
+            shape.type === "line"
+          ) {
             dispatch(
               updateShape({
                 id,
@@ -648,8 +717,13 @@ export function useCanvas() {
     }
 
     // Freedraw
-    if (currentTool === "freedraw" && freePointsRef.current.length > 1) {
-      dispatch(addFreeDrawShape({ points: [...freePointsRef.current] }));
+    if (
+      currentTool === "freedraw" &&
+      freePointsRef.current.length > 1
+    ) {
+      dispatch(
+        addFreeDrawShape({ points: [...freePointsRef.current] })
+      );
       freePointsRef.current = [];
     }
 
@@ -660,7 +734,10 @@ export function useCanvas() {
     (e: React.PointerEvent<HTMLDivElement>) => {
       canvasRef.current?.releasePointerCapture(e.pointerId);
 
-      if (viewport.mode === "panning" || viewport.mode === "shiftPanning") {
+      if (
+        viewport.mode === "panning" ||
+        viewport.mode === "shiftPanning"
+      ) {
         dispatch(panEnd());
       }
 
@@ -673,6 +750,7 @@ export function useCanvas() {
       if (resizingRef.current) {
         resizingRef.current = false;
         resizingDataRef.current = null;
+        lineEndpointDragRef.current = null;
       }
 
       if (erasingRef.current) {
@@ -697,10 +775,17 @@ export function useCanvas() {
   // ============================================
 
   const startResize = useCallback(
-    (shapeId: string, corner: ResizeCorner, e: React.PointerEvent) => {
+    (
+      shapeId: string,
+      corner: ResizeCorner,
+      e: React.PointerEvent
+    ) => {
       e.stopPropagation();
       const shape = shapeEntities[shapeId];
       if (!shape) return;
+
+      // Save history for undo before resizing
+      dispatch(saveHistorySnapshot());
 
       resizingRef.current = true;
       resizingDataRef.current = {
@@ -715,7 +800,28 @@ export function useCanvas() {
         startPoint: getLocalPoint(e),
       };
     },
-    [shapeEntities, getLocalPoint]
+    [shapeEntities, getLocalPoint, dispatch]
+  );
+
+  // ============================================
+  // LINE ENDPOINT DRAG
+  // ============================================
+
+  const startLineEndpointDrag = useCallback(
+    (
+      shapeId: string,
+      endpoint: "start" | "end",
+      e: React.PointerEvent
+    ) => {
+      e.stopPropagation();
+
+      // Save history for undo
+      dispatch(saveHistorySnapshot());
+
+      lineEndpointDragRef.current = { shapeId, endpoint };
+      resizingRef.current = true;
+    },
+    [dispatch]
   );
 
   // ============================================
@@ -754,7 +860,23 @@ export function useCanvas() {
         dispatch(setTool("select"));
       }
 
-      // Tool shortcuts
+      // Undo/Redo shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          dispatch(undo());
+        }
+        if (e.key === "z" && e.shiftKey) {
+          e.preventDefault();
+          dispatch(redo());
+        }
+        if (e.key === "y") {
+          e.preventDefault();
+          dispatch(redo());
+        }
+      }
+
+      // Tool shortcuts (only when no modifier)
       if (!e.ctrlKey && !e.metaKey) {
         switch (e.code) {
           case "KeyV":
@@ -854,7 +976,9 @@ export function useCanvas() {
       canvasRef.current = element;
 
       if (element) {
-        element.addEventListener("wheel", onWheel as any, { passive: false });
+        element.addEventListener("wheel", onWheel as any, {
+          passive: false,
+        });
       }
     },
     [onWheel]
@@ -872,11 +996,23 @@ export function useCanvas() {
   );
 
   const getDraftShape = useCallback(() => draftShapeRef.current, []);
-  const getFreeDrawPoints = useCallback(() => freePointsRef.current, []);
+  const getFreeDrawPoints = useCallback(
+    () => freePointsRef.current,
+    []
+  );
 
-  const handleZoomIn = useCallback(() => dispatch(zoomIn()), [dispatch]);
-  const handleZoomOut = useCallback(() => dispatch(zoomOut()), [dispatch]);
-  const handleResetZoom = useCallback(() => dispatch(resetView()), [dispatch]);
+  const handleZoomIn = useCallback(
+    () => dispatch(zoomIn()),
+    [dispatch]
+  );
+  const handleZoomOut = useCallback(
+    () => dispatch(zoomOut()),
+    [dispatch]
+  );
+  const handleResetZoom = useCallback(
+    () => dispatch(resetView()),
+    [dispatch]
+  );
 
   // ============================================
   // RETURN
@@ -905,6 +1041,7 @@ export function useCanvas() {
     getDraftShape,
     getFreeDrawPoints,
     startResize,
+    startLineEndpointDrag,
 
     // Zoom
     handleZoomIn,
