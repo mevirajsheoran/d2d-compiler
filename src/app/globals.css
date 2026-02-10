@@ -123,3 +123,193 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* src/app/globals.css - Add at the end (replace previous landing page CSS) */
+
+/* ============================================
+   LANDING PAGE STYLES - CLEAN VERSION
+   ============================================ */
+
+/* Smooth gradient text animation */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    #fff 0%,
+    #a78bfa 25%,
+    #818cf8 50%,
+    #22d3ee 75%,
+    #fff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Subtle glow pulse */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+/* Glass effect - dark version */
+.glass-dark {
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Subtle hover lift */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Fade in animation */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in-up 0.6s ease forwards;
+}
+
+.animate-fade-in-delay-1 {
+  animation: fade-in-up 0.6s ease 0.1s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-2 {
+  animation: fade-in-up 0.6s ease 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-3 {
+  animation: fade-in-up 0.6s ease 0.3s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-4 {
+  animation: fade-in-up 0.6s ease 0.4s forwards;
+  opacity: 0;
+}
+
+/* Dot grid background */
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Line decoration */
+.line-glow {
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+  height: 1px;
+}
+
+/* Add to src/app/globals.css */
+
+/* Gradient border glow animation */
+@keyframes border-glow {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.glow-border {
+  position: relative;
+}
+
+.glow-border::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    #a78bfa,
+    #818cf8,
+    #22d3ee,
+    #f472b6,
+    #a78bfa
+  );
+  background-size: 300% 300%;
+  animation: gradient-shift 4s ease infinite, border-glow 2s ease-in-out infinite;
+  z-index: -1;
+  opacity: 0.7;
+}
+
+.glow-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: black;
+  z-index: -1;
+}
+
+/* Page load animation */
+@keyframes page-load {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-enter {
+  animation: page-load 0.8s ease forwards;
+}
+
+/* Smooth cursor hiding on landing page */
+.custom-cursor * {
+  cursor: none !important;
+}
+
+.custom-cursor a,
+.custom-cursor button,
+.custom-cursor [role="button"],
+.custom-cursor input,
+.custom-cursor canvas {
+  cursor: none !important;
+}
+
+/* Hover scale for cursor */
+.custom-cursor a:hover ~ .cursor-dot,
+.custom-cursor button:hover ~ .cursor-dot {
+  transform: scale(2);
+}
