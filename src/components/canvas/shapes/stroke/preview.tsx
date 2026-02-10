@@ -7,14 +7,35 @@ interface StrokePreviewProps {
 export function StrokePreview({ points }: StrokePreviewProps) {
   if (points.length < 2) return null;
 
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
+  const padding = 12;
+
+  const width = maxX - minX + padding * 2;
+  const height = maxY - minY + padding * 2;
+
   const pathData = points
-    .map((point, i) => `${i === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .map((point, i) => {
+      const x = point.x - minX + padding;
+      const y = point.y - minY + padding;
+      return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+    })
     .join(" ");
 
   return (
     <svg
-      className="absolute pointer-events-none overflow-visible"
-      style={{ left: 0, top: 0, width: "100%", height: "100%" }}
+      className="absolute pointer-events-none"
+      style={{
+        left: minX - padding,
+        top: minY - padding,
+        width,
+        height,
+        overflow: "visible",
+      }}
     >
       <path
         d={pathData}

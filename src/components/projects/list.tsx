@@ -1,3 +1,4 @@
+// src/components/projects/list.tsx
 "use client";
 
 import { useAppSelector } from "@/redux/store";
@@ -14,13 +15,59 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { useProjectActions } from "@/hooks/use-project";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
+import { useAppDispatch } from "@/redux/store";
+import { removeProject, addProject } from "@/redux/slice/projects";
+import { toast } from "sonner";
 
 export function ProjectList() {
   const { projects, isLoading } = useAppSelector((state) => state.projects);
   const user = useAppSelector((state) => state.profile.user);
   const userSlug = user ? combinedSlug(user.name) : "";
-  const { deleteProject, duplicateProject } = useProjectActions();
+  const dispatch = useAppDispatch();
+
+  const deleteProjectMutation = useMutation(api.projects.deleteProject);
+  const duplicateProjectMutation = useMutation(api.projects.duplicateProject);
+
+  const handleDelete = async (projectId: string) => {
+    try {
+      await deleteProjectMutation({
+        projectId: projectId as Id<"projects">,
+      });
+      dispatch(removeProject(projectId));
+      toast.success("Project deleted");
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast.error("Failed to delete project");
+    }
+  };
+
+  const handleDuplicate = async (projectId: string) => {
+    try {
+      const result = await duplicateProjectMutation({
+        projectId: projectId as Id<"projects">,
+      });
+
+      // Add the new project to Redux
+      dispatch(
+        addProject({
+          id: result.projectId,
+          name: result.name,
+          projectNumber: result.projectNumber,
+          thumbnail: null,
+          lastModified: Date.now(),
+          createdAt: Date.now(),
+        })
+      );
+
+      toast.success("Project duplicated");
+    } catch (error) {
+      console.error("Duplicate failed:", error);
+      toast.error("Failed to duplicate project");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -43,19 +90,7 @@ export function ProjectList() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {/* Create New Project Card */}
-      <Card className="group cursor-pointer hover:border-primary transition-colors border-dashed">
-        <CardContent className="p-0 h-full flex flex-col items-center justify-center min-h-[280px]">
-          <div className="flex flex-col items-center gap-4 text-muted-foreground group-hover:text-primary transition-colors">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center">
-              <Plus className="w-8 h-8" />
-            </div>
-            <span className="font-medium">Create New Project</span>
-          </div>
-          <div className="mt-4">
-            <CreateProjectButton variant="outline" />
-          </div>
-        </CardContent>
-      </Card>
+      <CreateProjectCard />
 
       {/* Project Cards */}
       {projects.map((project) => (
@@ -72,7 +107,7 @@ export function ProjectList() {
                     variant="secondary"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={(e) => e.preventDefault()}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -80,8 +115,9 @@ export function ProjectList() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={(e) => {
-                      e.preventDefault();
+                      e.stopPropagation();
                       // TODO: Open rename dialog
+                      toast.info("Rename coming soon!");
                     }}
                   >
                     <Pencil className="mr-2 h-4 w-4" />
@@ -89,8 +125,8 @@ export function ProjectList() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={(e) => {
-                      e.preventDefault();
-                      duplicateProject(project.id);
+                      e.stopPropagation();
+                      handleDuplicate(project.id);
                     }}
                   >
                     <Copy className="mr-2 h-4 w-4" />
@@ -100,8 +136,8 @@ export function ProjectList() {
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={(e) => {
-                      e.preventDefault();
-                      deleteProject(project.id);
+                      e.stopPropagation();
+                      handleDelete(project.id);
                     }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
@@ -111,7 +147,7 @@ export function ProjectList() {
               </DropdownMenu>
             </div>
 
-            {/* Thumbnail Link */}
+            {/* Clickable Area */}
             <Link href={`/dashboard/${userSlug}/canvas?project=${project.id}`}>
               {/* Thumbnail */}
               <div className="aspect-[4/3] relative overflow-hidden">
@@ -144,7 +180,7 @@ export function ProjectList() {
         </Card>
       ))}
 
-      {/* Empty State */}
+      {/* Empty State - only show if no projects exist */}
       {projects.length === 0 && (
         <div className="col-span-full text-center py-12 text-muted-foreground">
           <p className="text-lg">No projects yet</p>
@@ -154,5 +190,26 @@ export function ProjectList() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Create New Project Card
+ */
+function CreateProjectCard() {
+  return (
+    <Card className="group hover:border-primary transition-colors border-dashed">
+      <CardContent className="p-0 h-full">
+        <div className="aspect-[4/3] flex flex-col items-center justify-center gap-4 text-muted-foreground group-hover:text-primary transition-colors">
+          <div className="w-14 h-14 rounded-full border-2 border-dashed border-current flex items-center justify-center">
+            <Plus className="w-7 h-7" />
+          </div>
+          <span className="font-medium text-sm">New Project</span>
+        </div>
+        <div className="p-4 pt-0 flex justify-center">
+          <CreateProjectButton />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -14,10 +14,21 @@ const getConvexClient = () => {
 };
 
 /**
+ * Safely parse JSON — handles both string and object input
+ */
+function safeParse(data: any): any {
+  if (!data) return null;
+  if (typeof data === "object") return data;
+  try {
+    return JSON.parse(data);
+  } catch {
+    console.warn("[Inngest] Failed to parse data, using raw value");
+    return data;
+  }
+}
+
+/**
  * Autosave Project Workflow
- * - Receives autosave request
- * - Updates project in Convex
- * - Retries on failure (3 attempts by Inngest default)
  */
 export const autosaveProjectWorkflow = inngest.createFunction(
   {
@@ -27,26 +38,30 @@ export const autosaveProjectWorkflow = inngest.createFunction(
   },
   { event: "project/autosave.requested" },
   async ({ event, step }) => {
-    const { projectId, shapes, viewportData } = event.data;
+    const { projectId, userId, shapes, viewportData } = event.data;
 
     console.log("[Inngest] Starting autosave for project:", projectId);
 
-    // Step 1: Update project in database
     const result = await step.run("update-project", async () => {
       try {
         const convex = getConvexClient();
-        
-        await convex.mutation(api.projects.updateProject, {
+
+        const sketchesData = safeParse(shapes);
+        const viewport = safeParse(viewportData);
+
+        // Use autosaveProject (no auth needed, uses userId)
+        await convex.mutation(api.projects.autosaveProject, {
           projectId: projectId as Id<"projects">,
-          sketchesData: JSON.parse(shapes),
-          viewportData: JSON.parse(viewportData),
+          userId: userId as Id<"users">,
+          sketchesData,
+          viewportData: viewport,
         });
 
         console.log("[Inngest] Project saved successfully:", projectId);
         return { success: true };
       } catch (error) {
         console.error("[Inngest] Failed to save project:", error);
-        throw error; // Inngest will retry
+        throw error;
       }
     });
 
@@ -55,9 +70,7 @@ export const autosaveProjectWorkflow = inngest.createFunction(
 );
 
 /**
- * Razorpay Webhook Handler
- * - Processes payment events
- * - Updates subscriptions in Convex
+ * Razorpay Webhook Handler (Placeholder)
  */
 export const razorpayWebhookHandler = inngest.createFunction(
   {
@@ -71,8 +84,6 @@ export const razorpayWebhookHandler = inngest.createFunction(
 
     console.log("[Inngest] Processing Razorpay event:", eventType);
 
-    // For now, just log the events
-    // Full implementation will be added when Razorpay plans are set up
     await step.run("log-event", async () => {
       console.log("[Inngest] Razorpay payload:", JSON.stringify(payload, null, 2));
       return { logged: true };
@@ -84,7 +95,6 @@ export const razorpayWebhookHandler = inngest.createFunction(
 
 /**
  * AI Generation Workflow (Placeholder)
- * - Will be implemented when AI backend is ready
  */
 export const generationWorkflow = inngest.createFunction(
   {
@@ -98,9 +108,7 @@ export const generationWorkflow = inngest.createFunction(
 
     console.log("[Inngest] Generation requested for frame:", frameId);
 
-    // Placeholder - will connect to YOLO+OCR or LLM later
     const result = await step.run("generate-design", async () => {
-      // TODO: Call AI backend here
       return {
         success: true,
         message: "Generation queued (placeholder)",
@@ -113,7 +121,7 @@ export const generationWorkflow = inngest.createFunction(
   }
 );
 
-// Export all functions for the serve handler
+// Export all functions
 export const functions = [
   autosaveProjectWorkflow,
   razorpayWebhookHandler,

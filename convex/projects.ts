@@ -279,3 +279,49 @@ export const duplicateProject = mutation({
     };
   },
 });
+
+
+
+// Add at the bottom of convex/projects.ts
+
+/**
+ * Internal update for autosave (called from API route / Inngest)
+ * Verifies ownership using userId instead of auth token
+ */
+export const autosaveProject = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+    sketchesData: v.optional(v.any()),
+    viewportData: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    // Verify the project exists
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Verify ownership using userId
+    if (project.userId !== args.userId) {
+      throw new Error("Access denied");
+    }
+
+    // Build update
+    const updateData: Record<string, any> = {
+      lastModified: Date.now(),
+    };
+
+    if (args.sketchesData !== undefined) {
+      updateData.sketchesData = args.sketchesData;
+    }
+
+    if (args.viewportData !== undefined) {
+      updateData.viewportData = args.viewportData;
+    }
+
+    await ctx.db.patch(args.projectId, updateData);
+
+    return { success: true, projectId: args.projectId };
+  },
+});

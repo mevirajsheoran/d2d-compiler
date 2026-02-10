@@ -1,3 +1,4 @@
+// src/components/projects/provider.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -16,14 +17,30 @@ export function ProjectsProvider({
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (initialProjects?._valueJSON) {
-      const projectData = initialProjects._valueJSON;
+    if (!initialProjects) return;
+
+    try {
+      // Convex preloadQuery wraps data in _valueJSON
+      let data = initialProjects;
+
+      if (data._valueJSON !== undefined) {
+        data = data._valueJSON;
+      }
+
+      if (!data) return;
+
+      // getUserProjects returns { projects: [...], total: N }
+      const projects = data.projects || [];
+      const total = data.total || projects.length;
+
       dispatch(
         fetchProjectsSuccess({
-          projects: projectData.projects || [],
-          total: projectData.total || 0,
+          projects,
+          total,
         })
       );
+    } catch (error) {
+      console.error("Failed to load projects into Redux:", error);
     }
   }, [initialProjects, dispatch]);
 
