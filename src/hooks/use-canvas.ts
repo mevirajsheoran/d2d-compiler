@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useAppSelector, useAppDispatch } from "@/redux/store";
 import {
@@ -7,28 +8,33 @@ import {
   Tool,
   setTool,
   selectShape,
-  deselectShape,
   clearSelection,
-  addFrame,
-  addRect,
-  addEllipse,
-  addArrow,
-  addLine,
+  addBoundedShape,
+  addLineLikeShape,
   addText,
   addFreeDrawShape,
+  addHighlighterShape,
   updateShape,
   removeShape,
   deleteSelected,
+  startFreeDraw,
+  continueFreeDraw,
+  endFreeDraw,
+  undo,
+  redo,
+  saveHistorySnapshot,
   FreeDrawShape,
+  HighlighterShape,
   ArrowShape,
   LineShape,
+  ConnectorShape,
   TextShape,
   FrameShape,
   RectShape,
   EllipseShape,
-  undo,
-  redo,
-  saveHistorySnapshot,
+  BOUNDED_DRAW_TOOLS,
+  LINE_DRAW_TOOLS,
+  FREEHAND_TOOLS,
 } from "@/redux/slice/shapes";
 import {
   panStart,
@@ -42,11 +48,13 @@ import {
   Point,
 } from "@/redux/slice/viewport";
 
+
+
 /* ======================================================
    Types
 ====================================================== */
 interface DraftShape {
-  type: "frame" | "rect" | "ellipse" | "arrow" | "line" | null;
+  type: Tool;
   startX: number;
   startY: number;
   endX: number;
@@ -65,8 +73,35 @@ interface ResizingData {
 /* ======================================================
    Constants
 ====================================================== */
-const FREEHAND_INTERVAL_MS = 16; // 60fps
+const FREEHAND_INTERVAL_MS = 16;
 const HIT_THRESHOLD = 8;
+
+/* ======================================================
+   Helper: Check if a shape type uses x,y,w,h bounds
+====================================================== */
+const BOUNDED_SHAPE_TYPES = [
+  "frame", "rect", "roundedRect", "ellipse", "circle",
+  "triangle", "star", "polygon", "divider",
+  "stickyNote", "speechBubble",
+  "imagePlaceholder", "videoPlaceholder", "chartPlaceholder",
+  "buttonShape", "inputField", "checkbox", "hamburgerMenu", "deviceFrame",
+  "generatedui", "text",
+];
+
+const LINE_SHAPE_TYPES = ["arrow", "line", "connector"];
+const FREEHAND_SHAPE_TYPES = ["freedraw", "highlighter"];
+
+function isBoundedShape(shape: Shape): shape is Shape & { x: number; y: number; w: number; h: number } {
+  return BOUNDED_SHAPE_TYPES.includes(shape.type);
+}
+
+function isLineShape(shape: Shape): shape is ArrowShape | LineShape | ConnectorShape {
+  return LINE_SHAPE_TYPES.includes(shape.type);
+}
+
+function isFreehandShape(shape: Shape): shape is FreeDrawShape | HighlighterShape {
+  return FREEHAND_SHAPE_TYPES.includes(shape.type);
+}
 
 /* ======================================================
    Main Hook
@@ -81,7 +116,6 @@ export function useCanvas() {
   const shapesState = useAppSelector((state) => state.shapes);
   const currentTool = useAppSelector((state) => state.shapes.tool);
 
-  // Convert entity state to array
   const shapeList: Shape[] = useMemo(() => {
     const { ids, entities } = shapesState.shapes;
     const idArray = Array.isArray(ids) ? ids : [];
@@ -90,22 +124,22 @@ export function useCanvas() {
       .filter((shape): shape is Shape => shape !== undefined && shape !== null);
   }, [shapesState.shapes]);
 
-  // Selected IDs
   const selectedIds = useMemo(() => {
     return Object.keys(shapesState.selected || {});
   }, [shapesState.selected]);
 
-  // Shape entities for quick lookup
   const shapeEntities = useMemo(
     () => shapesState.shapes.entities,
     [shapesState.shapes.entities]
   );
 
-  // Check if text is selected
+    // Check if any editable text shape is selected
+  const TEXT_EDITABLE_TYPES = ["text", "buttonShape", "inputField", "checkbox", "stickyNote", "speechBubble"];
+
   const hasSelectedText = useMemo(() => {
     return selectedIds.some((id) => {
       const shape = shapeEntities[id];
-      return shape?.type === "text";
+      return shape && TEXT_EDITABLE_TYPES.includes(shape.type);
     });
   }, [selectedIds, shapeEntities]);
 
@@ -122,12 +156,10 @@ export function useCanvas() {
   const draftShapeRef = useRef<DraftShape | null>(null);
   const freePointsRef = useRef<Point[]>([]);
 
-  // Keyboard state
   const spacePressed = useRef(false);
   const shiftPressed = useRef(false);
   const ctrlPressed = useRef(false);
 
-  // Interaction state
   const drawingRef = useRef(false);
   const movingRef = useRef(false);
   const moveStartRef = useRef<Point | null>(null);
@@ -137,16 +169,17 @@ export function useCanvas() {
   const resizingRef = useRef(false);
   const resizingDataRef = useRef<ResizingData | null>(null);
 
-  // Line endpoint drag
   const lineEndpointDragRef = useRef<{
     shapeId: string;
     endpoint: "start" | "end";
   } | null>(null);
 
-  // Animation refs
   const freehandAnimationRef = useRef<number | null>(null);
   const lastFreehandFrameRef = useRef<number>(0);
   const panAnimationRef = useRef<number | null>(null);
+
+  // Track the current freehand tool being used
+  const currentFreehandToolRef = useRef<Tool>("freedraw");
 
   // ============================================
   // UTILITY FUNCTIONS
@@ -160,7 +193,6 @@ export function useCanvas() {
     (clientX: number, clientY: number): Point => {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return { x: clientX, y: clientY };
-
       return {
         x: (clientX - rect.left - viewport.translate.x) / viewport.scale,
         y: (clientY - rect.top - viewport.translate.y) / viewport.scale,
@@ -190,21 +222,12 @@ export function useCanvas() {
       const dot = a * c + b * d;
       const lenSq = c * c + d * d;
       let param = -1;
-
       if (lenSq !== 0) param = dot / lenSq;
 
       let xx: number, yy: number;
-
-      if (param < 0) {
-        xx = lineStart.x;
-        yy = lineStart.y;
-      } else if (param > 1) {
-        xx = lineEnd.x;
-        yy = lineEnd.y;
-      } else {
-        xx = lineStart.x + param * c;
-        yy = lineStart.y + param * d;
-      }
+      if (param < 0) { xx = lineStart.x; yy = lineStart.y; }
+      else if (param > 1) { xx = lineEnd.x; yy = lineEnd.y; }
+      else { xx = lineStart.x + param * c; yy = lineStart.y + param * d; }
 
       return Math.sqrt((point.x - xx) ** 2 + (point.y - yy) ** 2);
     },
@@ -213,61 +236,45 @@ export function useCanvas() {
 
   const isPointInShape = useCallback(
     (point: Point, shape: Shape): boolean => {
-      switch (shape.type) {
-        case "frame":
-        case "rect":
-        case "ellipse": {
-          const s = shape as FrameShape | RectShape | EllipseShape;
-          return (
-            point.x >= s.x &&
-            point.x <= s.x + s.w &&
-            point.y >= s.y &&
-            point.y <= s.y + s.h
-          );
-        }
+      // Bounded shapes (x, y, w, h)
+      if (isBoundedShape(shape)) {
+        const s = shape as any;
+        const w = s.w || 100;
+        const h = s.h || 24;
+        return (
+          point.x >= s.x &&
+          point.x <= s.x + w &&
+          point.y >= s.y &&
+          point.y <= s.y + h
+        );
+      }
 
-        case "freedraw": {
-          const freeShape = shape as FreeDrawShape;
-          for (let i = 0; i < freeShape.points.length - 1; i++) {
-            const distance = distanceToLineSegment(
-              point,
-              freeShape.points[i],
-              freeShape.points[i + 1]
-            );
-            if (distance < HIT_THRESHOLD) return true;
-          }
-          return false;
-        }
-
-        case "arrow":
-        case "line": {
-          const lineShape = shape as ArrowShape | LineShape;
+      // Freehand shapes
+      if (isFreehandShape(shape)) {
+        const freeShape = shape as FreeDrawShape | HighlighterShape;
+        for (let i = 0; i < freeShape.points.length - 1; i++) {
           const distance = distanceToLineSegment(
             point,
-            { x: lineShape.startX, y: lineShape.startY },
-            { x: lineShape.endX, y: lineShape.endY }
+            freeShape.points[i],
+            freeShape.points[i + 1]
           );
-          return distance < HIT_THRESHOLD;
+          if (distance < HIT_THRESHOLD) return true;
         }
-
-        case "text": {
-          const textShape = shape as TextShape;
-          const textWidth = Math.max(
-            100,
-            textShape.text.length * textShape.fontSize * 0.6
-          );
-          const textHeight = textShape.fontSize * 1.5;
-          return (
-            point.x >= textShape.x - 8 &&
-            point.x <= textShape.x + textWidth + 8 &&
-            point.y >= textShape.y - 8 &&
-            point.y <= textShape.y + textHeight + 8
-          );
-        }
-
-        default:
-          return false;
+        return false;
       }
+
+      // Line-like shapes
+      if (isLineShape(shape)) {
+        const lineShape = shape as ArrowShape | LineShape | ConnectorShape;
+        const distance = distanceToLineSegment(
+          point,
+          { x: lineShape.startX, y: lineShape.startY },
+          { x: lineShape.endX, y: lineShape.endY }
+        );
+        return distance < HIT_THRESHOLD;
+      }
+
+      return false;
     },
     [distanceToLineSegment]
   );
@@ -291,7 +298,6 @@ export function useCanvas() {
   const schedulePanMove = useCallback(
     (newPoint: Point) => {
       if (panAnimationRef.current !== null) return;
-
       panAnimationRef.current = window.requestAnimationFrame(() => {
         panAnimationRef.current = null;
         dispatch(panMove(newPoint));
@@ -302,17 +308,14 @@ export function useCanvas() {
 
   const freehandTick = useCallback(() => {
     const now = performance.now();
-
     if (now - lastFreehandFrameRef.current >= FREEHAND_INTERVAL_MS) {
       if (freePointsRef.current.length > 0) {
         requestRender();
       }
       lastFreehandFrameRef.current = now;
     }
-
     if (drawingRef.current) {
-      freehandAnimationRef.current =
-        window.requestAnimationFrame(freehandTick);
+      freehandAnimationRef.current = window.requestAnimationFrame(freehandTick);
     }
   }, [requestRender]);
 
@@ -323,7 +326,6 @@ export function useCanvas() {
   const onWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault();
-
       if (e.ctrlKey || e.metaKey) {
         dispatch(
           wheelZoom({
@@ -345,8 +347,6 @@ export function useCanvas() {
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
-
-      // Check for interactive elements
       const isButton = target.tagName === "BUTTON" || target.closest("button");
       if (isButton) return;
 
@@ -355,7 +355,7 @@ export function useCanvas() {
 
       const world = getLocalPoint(e);
 
-      // Pan with middle/right click or space+click
+      // Pan
       const isPanButton = e.button === 1 || e.button === 2;
       const isPanBySpace = spacePressed.current && e.button === 0;
 
@@ -364,7 +364,6 @@ export function useCanvas() {
         return;
       }
 
-      // Left click
       if (e.button === 0) {
         // SELECT TOOL
         if (currentTool === "select") {
@@ -378,10 +377,8 @@ export function useCanvas() {
               dispatch(selectShape(hitShape.id));
             }
 
-            // Save history before moving
             dispatch(saveHistorySnapshot());
 
-            // Start moving
             movingRef.current = true;
             moveStartRef.current = world;
             initialShapePositionsRef.current = new Map();
@@ -392,23 +389,19 @@ export function useCanvas() {
               const shape = shapeEntities[id];
               if (!shape) return;
 
-              if (
-                ["frame", "rect", "ellipse", "text"].includes(shape.type)
-              ) {
+              if (isBoundedShape(shape)) {
+                const s = shape as any;
                 initialShapePositionsRef.current.set(id, {
-                  x: (shape as any).x,
-                  y: (shape as any).y,
+                  x: s.x,
+                  y: s.y,
                 });
-              } else if (shape.type === "freedraw") {
-                const freeShape = shape as FreeDrawShape;
+              } else if (isFreehandShape(shape)) {
+                const freeShape = shape as FreeDrawShape | HighlighterShape;
                 initialShapePositionsRef.current.set(id, {
                   points: [...freeShape.points],
                 });
-              } else if (
-                shape.type === "arrow" ||
-                shape.type === "line"
-              ) {
-                const lineShape = shape as ArrowShape | LineShape;
+              } else if (isLineShape(shape)) {
+                const lineShape = shape as ArrowShape | LineShape | ConnectorShape;
                 initialShapePositionsRef.current.set(id, {
                   startX: lineShape.startX,
                   startY: lineShape.startY,
@@ -426,7 +419,6 @@ export function useCanvas() {
         else if (currentTool === "eraser") {
           erasingRef.current = true;
           erasedShapesRef.current.clear();
-
           const hitShape = getShapeAtPoint(world);
           if (hitShape) {
             dispatch(removeShape(hitShape.id));
@@ -440,13 +432,11 @@ export function useCanvas() {
           dispatch(setTool("select"));
         }
 
-        // DRAWING TOOLS
-        else if (
-          ["frame", "rect", "ellipse", "arrow", "line"].includes(currentTool)
-        ) {
+        // BOUNDED DRAWING TOOLS (rect, roundedRect, ellipse, circle, triangle, star, etc.)
+        else if (BOUNDED_DRAW_TOOLS.includes(currentTool)) {
           drawingRef.current = true;
           draftShapeRef.current = {
-            type: currentTool as DraftShape["type"],
+            type: currentTool,
             startX: world.x,
             startY: world.y,
             endX: world.x,
@@ -455,13 +445,26 @@ export function useCanvas() {
           requestRender();
         }
 
-        // FREEDRAW TOOL
-        else if (currentTool === "freedraw") {
+        // LINE-LIKE DRAWING TOOLS (arrow, line, connector)
+        else if (LINE_DRAW_TOOLS.includes(currentTool)) {
           drawingRef.current = true;
+          draftShapeRef.current = {
+            type: currentTool,
+            startX: world.x,
+            startY: world.y,
+            endX: world.x,
+            endY: world.y,
+          };
+          requestRender();
+        }
+
+        // FREEHAND TOOLS (freedraw, highlighter)
+        else if (FREEHAND_TOOLS.includes(currentTool)) {
+          drawingRef.current = true;
+          currentFreehandToolRef.current = currentTool;
           freePointsRef.current = [world];
           lastFreehandFrameRef.current = performance.now();
-          freehandAnimationRef.current =
-            window.requestAnimationFrame(freehandTick);
+          freehandAnimationRef.current = window.requestAnimationFrame(freehandTick);
           requestRender();
         }
       }
@@ -483,20 +486,15 @@ export function useCanvas() {
       const world = getLocalPoint(e);
 
       // Panning
-      if (
-        viewport.mode === "panning" ||
-        viewport.mode === "shiftPanning"
-      ) {
+      if (viewport.mode === "panning" || viewport.mode === "shiftPanning") {
         schedulePanMove({ x: e.clientX, y: e.clientY });
         return;
       }
 
       // Resizing / Line endpoint dragging
       if (resizingRef.current) {
-        // Line/Arrow endpoint drag
         if (lineEndpointDragRef.current) {
           const { shapeId, endpoint } = lineEndpointDragRef.current;
-
           if (endpoint === "start") {
             dispatch(
               updateShape({
@@ -515,30 +513,24 @@ export function useCanvas() {
           return;
         }
 
-        // Standard resize (rect, ellipse, frame, etc.)
         if (resizingDataRef.current) {
-          const { shapeId, corner, initialBounds } =
-            resizingDataRef.current;
+          const { shapeId, corner, initialBounds } = resizingDataRef.current;
           let newBounds = { ...initialBounds };
 
           switch (corner) {
             case "nw":
-              newBounds.w =
-                initialBounds.w + (initialBounds.x - world.x);
-              newBounds.h =
-                initialBounds.h + (initialBounds.y - world.y);
+              newBounds.w = initialBounds.w + (initialBounds.x - world.x);
+              newBounds.h = initialBounds.h + (initialBounds.y - world.y);
               newBounds.x = world.x;
               newBounds.y = world.y;
               break;
             case "n":
-              newBounds.h =
-                initialBounds.h + (initialBounds.y - world.y);
+              newBounds.h = initialBounds.h + (initialBounds.y - world.y);
               newBounds.y = world.y;
               break;
             case "ne":
               newBounds.w = world.x - initialBounds.x;
-              newBounds.h =
-                initialBounds.h + (initialBounds.y - world.y);
+              newBounds.h = initialBounds.h + (initialBounds.y - world.y);
               newBounds.y = world.y;
               break;
             case "e":
@@ -552,19 +544,16 @@ export function useCanvas() {
               newBounds.h = world.y - initialBounds.y;
               break;
             case "sw":
-              newBounds.w =
-                initialBounds.w + (initialBounds.x - world.x);
+              newBounds.w = initialBounds.w + (initialBounds.x - world.x);
               newBounds.h = world.y - initialBounds.y;
               newBounds.x = world.x;
               break;
             case "w":
-              newBounds.w =
-                initialBounds.w + (initialBounds.x - world.x);
+              newBounds.w = initialBounds.w + (initialBounds.x - world.x);
               newBounds.x = world.x;
               break;
           }
 
-          // Ensure minimum size
           if (newBounds.w < 10) newBounds.w = 10;
           if (newBounds.h < 10) newBounds.h = 10;
 
@@ -593,11 +582,7 @@ export function useCanvas() {
       }
 
       // Moving shapes
-      if (
-        movingRef.current &&
-        moveStartRef.current &&
-        currentTool === "select"
-      ) {
+      if (movingRef.current && moveStartRef.current && currentTool === "select") {
         const deltaX = world.x - moveStartRef.current.x;
         const deltaY = world.y - moveStartRef.current.y;
 
@@ -605,9 +590,7 @@ export function useCanvas() {
           const shape = shapeEntities[id];
           if (!shape) return;
 
-          if (
-            ["frame", "rect", "ellipse", "text"].includes(shape.type)
-          ) {
+          if (isBoundedShape(shape)) {
             dispatch(
               updateShape({
                 id,
@@ -617,16 +600,13 @@ export function useCanvas() {
                 },
               })
             );
-          } else if (shape.type === "freedraw") {
+          } else if (isFreehandShape(shape)) {
             const newPoints = initialPos.points.map((p: Point) => ({
               x: p.x + deltaX,
               y: p.y + deltaY,
             }));
             dispatch(updateShape({ id, patch: { points: newPoints } }));
-          } else if (
-            shape.type === "arrow" ||
-            shape.type === "line"
-          ) {
+          } else if (isLineShape(shape)) {
             dispatch(
               updateShape({
                 id,
@@ -642,15 +622,15 @@ export function useCanvas() {
         });
       }
 
-      // Drawing draft shapes
+      // Drawing draft shapes (bounded + line-like)
       if (drawingRef.current && draftShapeRef.current) {
         draftShapeRef.current.endX = world.x;
         draftShapeRef.current.endY = world.y;
         requestRender();
       }
 
-      // Freedraw
-      if (currentTool === "freedraw" && drawingRef.current) {
+      // Freehand drawing
+      if (FREEHAND_TOOLS.includes(currentTool) && drawingRef.current) {
         freePointsRef.current.push(world);
       }
     },
@@ -668,10 +648,8 @@ export function useCanvas() {
 
   const finalizeDrawing = useCallback(() => {
     if (!drawingRef.current) return;
-
     drawingRef.current = false;
 
-    // Cancel freehand animation
     if (freehandAnimationRef.current) {
       cancelAnimationFrame(freehandAnimationRef.current);
       freehandAnimationRef.current = null;
@@ -686,24 +664,20 @@ export function useCanvas() {
       const h = Math.abs(draft.endY - draft.startY);
 
       if (w > 5 || h > 5) {
-        if (draft.type === "frame") {
-          dispatch(addFrame({ x, y, w, h }));
-        } else if (draft.type === "rect") {
-          dispatch(addRect({ x, y, w, h }));
-        } else if (draft.type === "ellipse") {
-          dispatch(addEllipse({ x, y, w, h }));
-        } else if (draft.type === "arrow") {
+        // Bounded shapes
+        if (BOUNDED_DRAW_TOOLS.includes(draft.type as Tool)) {
           dispatch(
-            addArrow({
-              startX: draft.startX,
-              startY: draft.startY,
-              endX: draft.endX,
-              endY: draft.endY,
+            addBoundedShape({
+              tool: draft.type as Tool,
+              x, y, w, h,
             })
           );
-        } else if (draft.type === "line") {
+        }
+        // Line-like shapes
+        else if (LINE_DRAW_TOOLS.includes(draft.type as Tool)) {
           dispatch(
-            addLine({
+            addLineLikeShape({
+              tool: draft.type as Tool,
               startX: draft.startX,
               startY: draft.startY,
               endX: draft.endX,
@@ -716,14 +690,18 @@ export function useCanvas() {
       draftShapeRef.current = null;
     }
 
-    // Freedraw
-    if (
-      currentTool === "freedraw" &&
-      freePointsRef.current.length > 1
-    ) {
-      dispatch(
-        addFreeDrawShape({ points: [...freePointsRef.current] })
-      );
+    // Freehand finalize
+        // Freehand finalize
+    if (FREEHAND_TOOLS.includes(currentTool) && freePointsRef.current.length > 1) {
+      if (currentFreehandToolRef.current === "highlighter") {
+        dispatch(
+          addHighlighterShape({ points: [...freePointsRef.current] })
+        );
+      } else {
+        dispatch(
+          addFreeDrawShape({ points: [...freePointsRef.current] })
+        );
+      }
       freePointsRef.current = [];
     }
 
@@ -734,10 +712,7 @@ export function useCanvas() {
     (e: React.PointerEvent<HTMLDivElement>) => {
       canvasRef.current?.releasePointerCapture(e.pointerId);
 
-      if (
-        viewport.mode === "panning" ||
-        viewport.mode === "shiftPanning"
-      ) {
+      if (viewport.mode === "panning" || viewport.mode === "shiftPanning") {
         dispatch(panEnd());
       }
 
@@ -775,16 +750,11 @@ export function useCanvas() {
   // ============================================
 
   const startResize = useCallback(
-    (
-      shapeId: string,
-      corner: ResizeCorner,
-      e: React.PointerEvent
-    ) => {
+    (shapeId: string, corner: ResizeCorner, e: React.PointerEvent) => {
       e.stopPropagation();
       const shape = shapeEntities[shapeId];
       if (!shape) return;
 
-      // Save history for undo before resizing
       dispatch(saveHistorySnapshot());
 
       resizingRef.current = true;
@@ -808,16 +778,9 @@ export function useCanvas() {
   // ============================================
 
   const startLineEndpointDrag = useCallback(
-    (
-      shapeId: string,
-      endpoint: "start" | "end",
-      e: React.PointerEvent
-    ) => {
+    (shapeId: string, endpoint: "start" | "end", e: React.PointerEvent) => {
       e.stopPropagation();
-
-      // Save history for undo
       dispatch(saveHistorySnapshot());
-
       lineEndpointDragRef.current = { shapeId, endpoint };
       resizingRef.current = true;
     },
@@ -830,7 +793,6 @@ export function useCanvas() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in input
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -838,7 +800,6 @@ export function useCanvas() {
         return;
       }
 
-      // Modifier keys
       if (e.code === "Space") {
         e.preventDefault();
         spacePressed.current = true;
@@ -854,13 +815,13 @@ export function useCanvas() {
         }
       }
 
-      // Escape - clear selection
+      // Escape
       if (e.code === "Escape") {
         dispatch(clearSelection());
         dispatch(setTool("select"));
       }
 
-      // Undo/Redo shortcuts
+      // Undo/Redo
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "z" && !e.shiftKey) {
           e.preventDefault();
@@ -876,39 +837,19 @@ export function useCanvas() {
         }
       }
 
-      // Tool shortcuts (only when no modifier)
+      // Tool shortcuts (no modifier)
       if (!e.ctrlKey && !e.metaKey) {
         switch (e.code) {
-          case "KeyV":
-            dispatch(setTool("select"));
-            break;
-          case "KeyH":
-            dispatch(setTool("pan"));
-            break;
-          case "KeyF":
-            dispatch(setTool("frame"));
-            break;
-          case "KeyR":
-            dispatch(setTool("rect"));
-            break;
-          case "KeyO":
-            dispatch(setTool("ellipse"));
-            break;
-          case "KeyP":
-            dispatch(setTool("freedraw"));
-            break;
-          case "KeyA":
-            dispatch(setTool("arrow"));
-            break;
-          case "KeyL":
-            dispatch(setTool("line"));
-            break;
-          case "KeyT":
-            dispatch(setTool("text"));
-            break;
-          case "KeyE":
-            dispatch(setTool("eraser"));
-            break;
+          case "KeyV": dispatch(setTool("select")); break;
+          case "KeyH": dispatch(setTool("pan")); break;
+          case "KeyF": dispatch(setTool("frame")); break;
+          case "KeyR": dispatch(setTool("rect")); break;
+          case "KeyO": dispatch(setTool("ellipse")); break;
+          case "KeyP": dispatch(setTool("freedraw")); break;
+          case "KeyA": dispatch(setTool("arrow")); break;
+          case "KeyL": dispatch(setTool("line")); break;
+          case "KeyT": dispatch(setTool("text")); break;
+          case "KeyE": dispatch(setTool("eraser")); break;
         }
       }
 
@@ -941,13 +882,8 @@ export function useCanvas() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-
-      if (freehandAnimationRef.current) {
-        cancelAnimationFrame(freehandAnimationRef.current);
-      }
-      if (panAnimationRef.current) {
-        cancelAnimationFrame(panAnimationRef.current);
-      }
+      if (freehandAnimationRef.current) cancelAnimationFrame(freehandAnimationRef.current);
+      if (panAnimationRef.current) cancelAnimationFrame(panAnimationRef.current);
     };
   }, [selectedIds, dispatch]);
 
@@ -956,11 +892,8 @@ export function useCanvas() {
   // ============================================
 
   useEffect(() => {
-    if (hasSelectedText && !sidebarOpen) {
-      setSidebarOpen(true);
-    } else if (!hasSelectedText && sidebarOpen) {
-      setSidebarOpen(false);
-    }
+    if (hasSelectedText && !sidebarOpen) setSidebarOpen(true);
+    else if (!hasSelectedText && sidebarOpen) setSidebarOpen(false);
   }, [hasSelectedText, sidebarOpen]);
 
   // ============================================
@@ -972,13 +905,9 @@ export function useCanvas() {
       if (canvasRef.current) {
         canvasRef.current.removeEventListener("wheel", onWheel as any);
       }
-
       canvasRef.current = element;
-
       if (element) {
-        element.addEventListener("wheel", onWheel as any, {
-          passive: false,
-        });
+        element.addEventListener("wheel", onWheel as any, { passive: false });
       }
     },
     [onWheel]
@@ -989,37 +918,23 @@ export function useCanvas() {
   // ============================================
 
   const selectToolFn = useCallback(
-    (tool: Tool) => {
-      dispatch(setTool(tool));
-    },
+    (tool: Tool) => dispatch(setTool(tool)),
     [dispatch]
   );
 
   const getDraftShape = useCallback(() => draftShapeRef.current, []);
-  const getFreeDrawPoints = useCallback(
-    () => freePointsRef.current,
-    []
-  );
+  const getFreeDrawPoints = useCallback(() => freePointsRef.current, []);
+  const getCurrentFreehandTool = useCallback(() => currentFreehandToolRef.current, []);
 
-  const handleZoomIn = useCallback(
-    () => dispatch(zoomIn()),
-    [dispatch]
-  );
-  const handleZoomOut = useCallback(
-    () => dispatch(zoomOut()),
-    [dispatch]
-  );
-  const handleResetZoom = useCallback(
-    () => dispatch(resetView()),
-    [dispatch]
-  );
+  const handleZoomIn = useCallback(() => dispatch(zoomIn()), [dispatch]);
+  const handleZoomOut = useCallback(() => dispatch(zoomOut()), [dispatch]);
+  const handleResetZoom = useCallback(() => dispatch(resetView()), [dispatch]);
 
   // ============================================
   // RETURN
   // ============================================
 
   return {
-    // State
     viewport,
     shapeList,
     currentTool,
@@ -1028,27 +943,24 @@ export function useCanvas() {
     hasSelectedText,
     sidebarOpen,
 
-    // Pointer handlers
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onPointerCancel,
 
-    // Helpers
     attachCanvasRef,
     selectTool: selectToolFn,
     setSidebarOpen,
     getDraftShape,
     getFreeDrawPoints,
+    getCurrentFreehandTool,
     startResize,
     startLineEndpointDrag,
 
-    // Zoom
     handleZoomIn,
     handleZoomOut,
     handleResetZoom,
 
-    // Utility
     screenToCanvas,
     getShapeAtPoint,
   };

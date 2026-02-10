@@ -980,6 +980,13 @@ const shapesSlice = createSlice({
       shapesAdapter.addOne(state.shapes, makeFree(action.payload));
     },
 
+    addHighlighterShape(state, action: PayloadAction<Parameters<typeof makeHighlighter>[0]>) {
+      const { points } = action.payload;
+      if (!points || points.length === 0) return;
+      pushHistory(state);
+      shapesAdapter.addOne(state.shapes, makeHighlighter(action.payload));
+    },
+
     // ============================================
     // Update shapes
     // ============================================
@@ -1116,6 +1123,7 @@ export const {
   continueFreeDraw,
   endFreeDraw,
   addFreeDrawShape,
+  addHighlighterShape,  // ADD THIS
   updateShape,
   moveShape,
   resizeShape,
@@ -1123,7 +1131,7 @@ export const {
   deleteSelected,
   clearAll,
   selectShape,
-  addToSelection,
+  addToSelection, 
   deselectShape,
   clearSelection,
   selectAll,

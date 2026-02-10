@@ -1,25 +1,50 @@
 "use client";
 
 import { useAppSelector } from "@/redux/store";
-import { Shape, FreeDrawShape, ArrowShape, LineShape } from "@/redux/slice/shapes";
+import {
+  Shape,
+  FreeDrawShape,
+  HighlighterShape,
+  ArrowShape,
+  LineShape,
+  ConnectorShape,
+} from "@/redux/slice/shapes";
 import { cn } from "@/lib/utils";
 
 type ResizeCorner = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
-// Extended to include line endpoint handles
-type HandleType = ResizeCorner | "line-start" | "line-end";
-
 interface SelectionOverlayProps {
-  onResizeStart: (shapeId: string, corner: ResizeCorner, e: React.PointerEvent) => void;
-  onLineEndpointDrag?: (shapeId: string, endpoint: "start" | "end", e: React.PointerEvent) => void;
+  onResizeStart: (
+    shapeId: string,
+    corner: ResizeCorner,
+    e: React.PointerEvent
+  ) => void;
+  onLineEndpointDrag?: (
+    shapeId: string,
+    endpoint: "start" | "end",
+    e: React.PointerEvent
+  ) => void;
 }
 
-export function SelectionOverlay({ onResizeStart, onLineEndpointDrag }: SelectionOverlayProps) {
+const LINE_TYPES = ["line", "arrow", "connector"];
+const FREEHAND_TYPES = ["freedraw", "highlighter"];
+const BOUNDED_TYPES = [
+  "frame", "rect", "roundedRect", "ellipse", "circle",
+  "triangle", "star", "polygon", "divider",
+  "stickyNote", "speechBubble",
+  "imagePlaceholder", "videoPlaceholder", "chartPlaceholder",
+  "buttonShape", "inputField", "checkbox", "hamburgerMenu", "deviceFrame",
+  "text", "generatedui",
+];
+
+export function SelectionOverlay({
+  onResizeStart,
+  onLineEndpointDrag,
+}: SelectionOverlayProps) {
   const selected = useAppSelector((state) => state.shapes.selected);
   const entities = useAppSelector((state) => state.shapes.shapes.entities);
 
   const selectedIds = Object.keys(selected || {});
-
   if (selectedIds.length === 0) return null;
 
   return (
@@ -28,17 +53,20 @@ export function SelectionOverlay({ onResizeStart, onLineEndpointDrag }: Selectio
         const shape = entities[id];
         if (!shape) return null;
 
-        // Use specialized selection for line/arrow
-        if (shape.type === "line" || shape.type === "arrow") {
+        // Line-like shapes get endpoint handles
+        if (LINE_TYPES.includes(shape.type)) {
           return (
             <LineSelectionBox
               key={id}
-              shape={shape as ArrowShape | LineShape}
-              onEndpointDrag={(endpoint, e) => onLineEndpointDrag?.(id, endpoint, e)}
+              shape={shape as ArrowShape | LineShape | ConnectorShape}
+              onEndpointDrag={(endpoint, e) =>
+                onLineEndpointDrag?.(id, endpoint, e)
+              }
             />
           );
         }
 
+        // Everything else gets bounding box handles
         return (
           <SelectionBox
             key={id}
@@ -52,7 +80,7 @@ export function SelectionOverlay({ onResizeStart, onLineEndpointDrag }: Selectio
 }
 
 /* ======================================================
-   Standard Selection Box (rect, ellipse, frame, text, freedraw)
+   Standard Selection Box
 ====================================================== */
 interface SelectionBoxProps {
   shape: Shape;
@@ -62,15 +90,15 @@ interface SelectionBoxProps {
 function SelectionBox({ shape, onResizeStart }: SelectionBoxProps) {
   let bounds = { x: 0, y: 0, w: 0, h: 0 };
 
-  if (["frame", "rect", "ellipse", "text", "generatedui"].includes(shape.type)) {
+  if (BOUNDED_TYPES.includes(shape.type)) {
     bounds = {
-      x: (shape as any).x,
-      y: (shape as any).y,
+      x: (shape as any).x ?? 0,
+      y: (shape as any).y ?? 0,
       w: (shape as any).w || 100,
       h: (shape as any).h || 24,
     };
-  } else if (shape.type === "freedraw") {
-    const freeShape = shape as FreeDrawShape;
+  } else if (FREEHAND_TYPES.includes(shape.type)) {
+    const freeShape = shape as FreeDrawShape | HighlighterShape;
     if (freeShape.points.length > 0) {
       const xs = freeShape.points.map((p) => p.x);
       const ys = freeShape.points.map((p) => p.y);
@@ -87,15 +115,55 @@ function SelectionBox({ shape, onResizeStart }: SelectionBoxProps) {
   const handleSize = 8;
   const halfHandle = handleSize / 2;
 
-  const handles: { corner: ResizeCorner; x: number; y: number; cursor: string }[] = [
+  const handles: {
+    corner: ResizeCorner;
+    x: number;
+    y: number;
+    cursor: string;
+  }[] = [
     { corner: "nw", x: -halfHandle, y: -halfHandle, cursor: "nwse-resize" },
-    { corner: "n", x: bounds.w / 2 - halfHandle, y: -halfHandle, cursor: "ns-resize" },
-    { corner: "ne", x: bounds.w - halfHandle, y: -halfHandle, cursor: "nesw-resize" },
-    { corner: "e", x: bounds.w - halfHandle, y: bounds.h / 2 - halfHandle, cursor: "ew-resize" },
-    { corner: "se", x: bounds.w - halfHandle, y: bounds.h - halfHandle, cursor: "nwse-resize" },
-    { corner: "s", x: bounds.w / 2 - halfHandle, y: bounds.h - halfHandle, cursor: "ns-resize" },
-    { corner: "sw", x: -halfHandle, y: bounds.h - halfHandle, cursor: "nesw-resize" },
-    { corner: "w", x: -halfHandle, y: bounds.h / 2 - halfHandle, cursor: "ew-resize" },
+    {
+      corner: "n",
+      x: bounds.w / 2 - halfHandle,
+      y: -halfHandle,
+      cursor: "ns-resize",
+    },
+    {
+      corner: "ne",
+      x: bounds.w - halfHandle,
+      y: -halfHandle,
+      cursor: "nesw-resize",
+    },
+    {
+      corner: "e",
+      x: bounds.w - halfHandle,
+      y: bounds.h / 2 - halfHandle,
+      cursor: "ew-resize",
+    },
+    {
+      corner: "se",
+      x: bounds.w - halfHandle,
+      y: bounds.h - halfHandle,
+      cursor: "nwse-resize",
+    },
+    {
+      corner: "s",
+      x: bounds.w / 2 - halfHandle,
+      y: bounds.h - halfHandle,
+      cursor: "ns-resize",
+    },
+    {
+      corner: "sw",
+      x: -halfHandle,
+      y: bounds.h - halfHandle,
+      cursor: "nesw-resize",
+    },
+    {
+      corner: "w",
+      x: -halfHandle,
+      y: bounds.h / 2 - halfHandle,
+      cursor: "ew-resize",
+    },
   ];
 
   return (
@@ -141,11 +209,14 @@ function SelectionBox({ shape, onResizeStart }: SelectionBoxProps) {
 }
 
 /* ======================================================
-   Line/Arrow Selection Box - 2 endpoint handles + dashed line
+   Line/Arrow/Connector Selection Box
 ====================================================== */
 interface LineSelectionBoxProps {
-  shape: ArrowShape | LineShape;
-  onEndpointDrag: (endpoint: "start" | "end", e: React.PointerEvent) => void;
+  shape: ArrowShape | LineShape | ConnectorShape;
+  onEndpointDrag: (
+    endpoint: "start" | "end",
+    e: React.PointerEvent
+  ) => void;
 }
 
 function LineSelectionBox({ shape, onEndpointDrag }: LineSelectionBoxProps) {
@@ -154,7 +225,7 @@ function LineSelectionBox({ shape, onEndpointDrag }: LineSelectionBoxProps) {
 
   return (
     <>
-      {/* Dashed selection line along the shape */}
+      {/* Dashed selection line */}
       <svg
         className="absolute pointer-events-none overflow-visible"
         style={{ left: 0, top: 0, width: 1, height: 1 }}
@@ -217,7 +288,7 @@ function LineSelectionBox({ shape, onEndpointDrag }: LineSelectionBoxProps) {
         }}
       />
 
-      {/* Midpoint indicator (small diamond) */}
+      {/* Midpoint diamond */}
       <div
         className="absolute pointer-events-none"
         style={{

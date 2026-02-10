@@ -6,15 +6,139 @@ import { useSearchParams } from "next/navigation";
 import { TextSidebar } from "./text-sidebar";
 import { ShapeRenderer } from "./shapes";
 import { SelectionOverlay } from "./shapes/selection";
+import { cn } from "@/lib/utils";
+import {
+  BOUNDED_DRAW_TOOLS,
+  LINE_DRAW_TOOLS,
+  FREEHAND_TOOLS,
+  Tool,
+} from "@/redux/slice/shapes";
+
+// Previews for specific shapes
 import { RectanglePreview } from "./shapes/rectangle/preview";
 import { EllipsePreview } from "./shapes/ellipse/preview";
 import { FramePreview } from "./shapes/frame/preview";
 import { ArrowPreview } from "./shapes/arrow/preview";
 import { LinePreview } from "./shapes/line/preview";
 import { StrokePreview } from "./shapes/stroke/preview";
-import { cn } from "@/lib/utils";
+import { RoundedRectanglePreview } from "./shapes/rounded-rectangle/preview";
+import { CirclePreview } from "./shapes/circle/preview";
+import { TrianglePreview } from "./shapes/triangle/preview";
+import { StarPreview } from "./shapes/star/preview";
+import { PolygonPreview } from "./shapes/polygon/preview";
+import { ConnectorPreview } from "./shapes/connector/preview";
+import { DividerPreview } from "./shapes/divider/preview";
+import { HighlighterPreview } from "./shapes/highlighter/preview";
+import { GenericBoundedPreview } from "./shapes/generic-preview";
 
+/* ======================================================
+   Preview Renderer - picks the right preview for each tool
+====================================================== */
+function DraftPreview({
+  tool,
+  startX,
+  startY,
+  endX,
+  endY,
+}: {
+  tool: Tool;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) {
+  const x = Math.min(startX, endX);
+  const y = Math.min(startY, endY);
+  const w = Math.abs(endX - startX);
+  const h = Math.abs(endY - startY);
 
+  // Line-like tools use start/end coordinates
+  if (LINE_DRAW_TOOLS.includes(tool)) {
+    switch (tool) {
+      case "arrow":
+        return (
+          <ArrowPreview
+            startX={startX}
+            startY={startY}
+            endX={endX}
+            endY={endY}
+          />
+        );
+      case "line":
+        return (
+          <LinePreview
+            startX={startX}
+            startY={startY}
+            endX={endX}
+            endY={endY}
+          />
+        );
+      case "connector":
+        return (
+          <ConnectorPreview
+            startX={startX}
+            startY={startY}
+            endX={endX}
+            endY={endY}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  // Bounded tools use x, y, w, h
+  if (BOUNDED_DRAW_TOOLS.includes(tool)) {
+    switch (tool) {
+      case "frame":
+        return <FramePreview x={x} y={y} w={w} h={h} />;
+      case "rect":
+        return <RectanglePreview x={x} y={y} w={w} h={h} />;
+      case "roundedRect":
+        return <RoundedRectanglePreview x={x} y={y} w={w} h={h} />;
+      case "ellipse":
+        return <EllipsePreview x={x} y={y} w={w} h={h} />;
+      case "circle":
+        return <CirclePreview x={x} y={y} w={w} h={h} />;
+      case "triangle":
+        return <TrianglePreview x={x} y={y} w={w} h={h} />;
+      case "star":
+        return <StarPreview x={x} y={y} w={w} h={h} />;
+      case "polygon":
+        return <PolygonPreview x={x} y={y} w={w} h={h} />;
+      case "divider":
+        return <DividerPreview x={x} y={y} w={w} h={h} />;
+      default:
+        // All other bounded shapes use generic preview
+        return <GenericBoundedPreview x={x} y={y} w={w} h={h} />;
+    }
+  }
+
+  return null;
+}
+
+/* ======================================================
+   Freehand Preview - picks between stroke and highlighter
+====================================================== */
+function FreehandPreview({
+  tool,
+  points,
+}: {
+  tool: Tool;
+  points: { x: number; y: number }[];
+}) {
+  if (points.length < 2) return null;
+
+  if (tool === "highlighter") {
+    return <HighlighterPreview points={points} />;
+  }
+
+  return <StrokePreview points={points} />;
+}
+
+/* ======================================================
+   InfiniteCanvas Component
+====================================================== */
 export function InfiniteCanvas() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project");
@@ -33,6 +157,7 @@ export function InfiniteCanvas() {
     onPointerCancel,
     getDraftShape,
     getFreeDrawPoints,
+    getCurrentFreehandTool,
     startResize,
     startLineEndpointDrag,
   } = useCanvas();
@@ -42,6 +167,7 @@ export function InfiniteCanvas() {
 
   const draftShape = getDraftShape();
   const freeDrawPoints = getFreeDrawPoints();
+  const freehandTool = getCurrentFreehandTool();
 
   // Cursor based on tool
   const getCursor = () => {
@@ -53,6 +179,8 @@ export function InfiniteCanvas() {
       case "text":
         return "text";
       case "eraser":
+        return "crosshair";
+      case "highlighter":
         return "crosshair";
       default:
         return "crosshair";
@@ -107,42 +235,16 @@ export function InfiniteCanvas() {
             />
           ))}
 
-          {/* Selection overlay with both resize and line endpoint handlers */}
+          {/* Selection overlay */}
           <SelectionOverlay
             onResizeStart={startResize}
             onLineEndpointDrag={startLineEndpointDrag}
           />
 
-          {/* Draft previews */}
-          {draftShape?.type === "rect" && (
-            <RectanglePreview
-              x={Math.min(draftShape.startX, draftShape.endX)}
-              y={Math.min(draftShape.startY, draftShape.endY)}
-              w={Math.abs(draftShape.endX - draftShape.startX)}
-              h={Math.abs(draftShape.endY - draftShape.startY)}
-            />
-          )}
-
-          {draftShape?.type === "ellipse" && (
-            <EllipsePreview
-              x={Math.min(draftShape.startX, draftShape.endX)}
-              y={Math.min(draftShape.startY, draftShape.endY)}
-              w={Math.abs(draftShape.endX - draftShape.startX)}
-              h={Math.abs(draftShape.endY - draftShape.startY)}
-            />
-          )}
-
-          {draftShape?.type === "frame" && (
-            <FramePreview
-              x={Math.min(draftShape.startX, draftShape.endX)}
-              y={Math.min(draftShape.startY, draftShape.endY)}
-              w={Math.abs(draftShape.endX - draftShape.startX)}
-              h={Math.abs(draftShape.endY - draftShape.startY)}
-            />
-          )}
-
-          {draftShape?.type === "arrow" && (
-            <ArrowPreview
+          {/* Draft shape preview (while drawing) */}
+          {draftShape && draftShape.type && (
+            <DraftPreview
+              tool={draftShape.type as Tool}
               startX={draftShape.startX}
               startY={draftShape.startY}
               endX={draftShape.endX}
@@ -150,19 +252,11 @@ export function InfiniteCanvas() {
             />
           )}
 
-          {draftShape?.type === "line" && (
-            <LinePreview
-              startX={draftShape.startX}
-              startY={draftShape.startY}
-              endX={draftShape.endX}
-              endY={draftShape.endY}
-            />
-          )}
-
-          {/* Freehand preview */}
-          {currentTool === "freedraw" && freeDrawPoints.length > 1 && (
-            <StrokePreview points={freeDrawPoints} />
-          )}
+          {/* Freehand preview (while drawing) */}
+          {FREEHAND_TOOLS.includes(currentTool) &&
+            freeDrawPoints.length > 1 && (
+              <FreehandPreview tool={freehandTool} points={freeDrawPoints} />
+            )}
         </div>
       </div>
     </>

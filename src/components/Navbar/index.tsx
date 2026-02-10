@@ -6,10 +6,25 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useAppSelector } from "@/redux/store";
+import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
-import { Hash, LayoutTemplate, CircleHelp, Coins } from "lucide-react";
+import {
+  Hash,
+  LayoutTemplate,
+  Coins,
+  LogOut,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CreateProjectButton } from "@/components/buttons/project";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AutosaveIndicator } from "@/components/canvas/autosave-indicator";
@@ -24,6 +39,9 @@ export function Navbar() {
   // Get user profile from Redux store
   const user = useAppSelector((state) => state.profile.user);
   const userSlug = user ? combinedSlug(user.name) : "";
+
+  // Auth hook for logout
+  const { handleSignOut, isLoading: isSigningOut } = useAuth();
 
   // Get project details if on a project page
   const project = useQuery(
@@ -120,23 +138,75 @@ export function Navbar() {
             </Link>
           )}
 
-          {/* Help button */}
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <CircleHelp className="h-5 w-5" />
-          </Button>
 
           {/* Theme toggle */}
           <ThemeToggle />
 
-          {/* User avatar or Sign in */}
+          {/* User avatar with dropdown or Sign in */}
           {user ? (
             <>
-              <Avatar className="h-8 w-8 cursor-pointer">
-                <AvatarImage src={user.image || ""} alt={user.name || "User"} />
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {getInitials(user)}
-                </AvatarFallback>
-              </Avatar>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="outline-none">
+                    <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity">
+                      <AvatarImage
+                        src={user.image || ""}
+                        alt={user.name || "User"}
+                      />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {getInitials(user)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* User info */}
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user.name || "User"}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email || ""}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Dashboard link */}
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={`/dashboard/${userSlug}`}
+                      className="cursor-pointer"
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {/* Billing link */}
+                  <DropdownMenuItem asChild>
+                    <Link href="/billing" className="cursor-pointer">
+                      <Coins className="mr-2 h-4 w-4" />
+                      <span>Billing</span>
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Logout */}
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Create project button */}
               <CreateProjectButton />
