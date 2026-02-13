@@ -1,3 +1,5 @@
+// src/components/canvas/shapes/frame/index.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -6,6 +8,7 @@ import { useAppSelector } from "@/redux/store";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { generateFrameSnapshot, downloadBlob } from "@/lib/frame-snapshot";
+import { GenerationButton } from "@/components/generation/generation-button";
 import { toast } from "sonner";
 
 interface FrameProps {
@@ -72,9 +75,13 @@ export function Frame({ shape, isSelected }: FrameProps) {
         </span>
       </div>
 
-      {/* Export button - only when selected */}
+      {/* Action buttons - only when selected */}
       {isSelected && (
         <div className="absolute -top-9 right-0 flex gap-1">
+          {/* Generate button (NEW) */}
+          <GenerationButton frame={shape} />
+
+          {/* Export PNG button (existing) */}
           <Button
             size="sm"
             variant="secondary"
