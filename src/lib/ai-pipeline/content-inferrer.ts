@@ -41,6 +41,7 @@ import {
   getFeatureIcons,
 } from "./icon-registry";
 
+import { escapeHtml } from "@/lib/utils";
 /* ══════════════════════════════════════════════════════════
    HELPERS
    ══════════════════════════════════════════════════════════ */
@@ -61,7 +62,8 @@ function isBlankText(text: string | undefined): boolean {
     t === "enter text..." ||
     t === "placeholder" ||
     t === "checkbox label" ||
-    t === "option"
+    t === "option" ||
+    t === "brand"
   );
 }
 
@@ -100,7 +102,8 @@ function inferButtonContent(
   _positionIndex: number
 ): InferredContent {
   const result: InferredContent = {};
-  const currentText = (node.properties?.text as string) || node.text || "";
+  const rawText = (node.properties?.text as string) || node.text || "";
+  const currentText = rawText ? escapeHtml(rawText) : "";
 
   // Determine text
   if (isBlankText(currentText)) {
@@ -288,7 +291,7 @@ function inferHeadingContent(
   _positionIndex: number
 ): InferredContent {
   const result: InferredContent = {};
-  const currentText = node.text || "";
+  const currentText = node.text ? escapeHtml(node.text) : "";
 
   if (!isBlankText(currentText)) {
     return result; // User provided text — keep it
@@ -357,7 +360,7 @@ function inferParagraphContent(
   _positionIndex: number
 ): InferredContent {
   const result: InferredContent = {};
-  const currentText = node.text || "";
+  const currentText = node.text ? escapeHtml(node.text) : "";
 
   if (!isBlankText(currentText)) {
     return result; // User provided text — keep it
@@ -430,7 +433,8 @@ function inferCheckboxContent(
   _positionIndex: number
 ): InferredContent {
   const result: InferredContent = {};
-  const currentLabel = (node.properties?.label as string) || "";
+  const rawLabel = (node.properties?.label as string) || "";
+  const currentLabel = rawLabel ? escapeHtml(rawLabel) : "";
 
   if (isBlankText(currentLabel)) {
     if (sectionType === "form") {
@@ -457,10 +461,12 @@ function inferNavContent(
 ): InferredContent {
   const result: InferredContent = {};
 
-  if (slotName === "logo") {
+    if (slotName === "logo") {
     // Nav brand name
     if (isBlankText(node.text)) {
       result.text = content.navBrand;
+    } else {
+      result.text = escapeHtml(node.text || "");
     }
   } else if (slotName === "nav-link") {
     if (isBlankText(node.text)) {

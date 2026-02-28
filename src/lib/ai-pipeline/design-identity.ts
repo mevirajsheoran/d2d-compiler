@@ -32,7 +32,9 @@ import type {
   ContentPreset,
 } from "./types";
 
-import type { StyleGuide } from "@/types/style-guide";
+import type { StyleGuide, DesignBrief } from "@/types/style-guide";
+import { getIndustryContent } from "./industry-content";
+import { escapeHtml } from "@/lib/utils";
 
 import {
   generatePalette,
@@ -2507,7 +2509,92 @@ export function detectPresetFromStyleGuide(
   // Default
   return "startup-modern";
 }
+/* ══════════════════════════════════════════════════════════════════════════════
+   CONTENT OVERRIDE FROM DESIGN BRIEF
+   
+   When a DesignBrief is present, we override the preset's default content
+   with industry-specific content from industry-content.ts.
+   
+   This means:
+   - Restaurant industry → "Reserve a Table" instead of "Get Started"
+   - Medical industry → "Book Appointment" instead of "Start Free Trial"
+   - Brand name → appears in nav, footer, CTA
+   - Tagline → appears as hero subtitle
+   
+   The identity.content object is mutated in place after the preset builds it.
+   ══════════════════════════════════════════════════════════════════════════════ */
+function applyBriefToContent(
+  identity: DesignIdentity,
+  brief: DesignBrief
+): void {
+  // ─── Brand Name Permeation ───
+  const safeBrand = brief.brandName
+    ? escapeHtml(brief.brandName.trim().slice(0, 30))
+    : "";
+  const safeTagline = brief.tagline
+    ? escapeHtml(brief.tagline.trim().slice(0, 100))
+    : "";
 
+  if (safeBrand) {
+    identity.content.navBrand = safeBrand;
+    identity.content.footerCopy = `© ${new Date().getFullYear()} ${safeBrand}. All rights reserved.`;
+  }
+
+  // ─── Industry Content Override ───
+  if (brief.industry) {
+    const industryBank = getIndustryContent(brief.industry);
+
+    // Hero
+    identity.content.heroHeadings = industryBank.heroHeadings;
+    identity.content.heroSubtexts = industryBank.heroSubtexts;
+
+    // CTAs
+    identity.content.ctaPrimary = industryBank.ctaPrimary;
+    identity.content.ctaSecondary = industryBank.ctaSecondary;
+
+    // Nav
+    identity.content.navLinks = industryBank.navLinks;
+
+    // Footer
+    identity.content.footerLinks = industryBank.footerLinks;
+
+    // Features
+    identity.content.featureTitles = industryBank.featureTitles;
+    identity.content.featureTexts = industryBank.featureDescriptions;
+  }
+
+  // ─── Tagline Override ───
+  // If user provided a tagline, use it as the first hero subtext
+  if (safeTagline) {
+    identity.content.heroSubtexts = [
+      safeTagline,
+      ...identity.content.heroSubtexts,
+    ];
+  }
+
+  // ─── Brand-Woven CTA Text ───
+  // Add brand-specific CTA options alongside industry ones
+  if (safeBrand) {
+    identity.content.ctaPrimary = [
+      ...identity.content.ctaPrimary,
+      `Try ${safeBrand}`,
+      `Start with ${safeBrand}`,
+    ];
+    identity.content.ctaSecondary = [
+      ...identity.content.ctaSecondary,
+      `About ${safeBrand}`,
+    ];
+  }
+
+  // ─── Form Headings with Brand ───
+  if (safeBrand) {
+    identity.content.formHeadings = [
+      `Welcome to ${safeBrand}`,
+      `Sign in to ${safeBrand}`,
+      ...identity.content.formHeadings,
+    ];
+  }
+}
 
 /* ══════════════════════════════════════════════════════════════════════════════
    MAIN FUNCTION: Build Design Identity from Style Guide
@@ -2528,13 +2615,34 @@ export function buildDesignIdentity(
   styleGuide: StyleGuide | null,
   presetName?: PresetName
 ): DesignIdentity {
-  // ─── Step 1: Determine preset ───
-  const resolvedPreset: PresetName =
+  // ─── Step 1: Extract brief ───
+  const brief = styleGuide?.brief;
+
+  // ─── Step 2: Determine preset ───
+  // Priority: explicit presetName param > styleGuide.preset > brief.tone mapping > auto-detect
+  let resolvedPreset: PresetName =
     presetName ||
     (styleGuide as Record<string, unknown> | null)?.preset as PresetName ||
-    detectPresetFromStyleGuide(styleGuide);
+    undefined as unknown as PresetName;
 
-  // ─── Step 2: Extract user colors (or defaults) ───
+  if (!resolvedPreset && brief?.tone) {
+    // Map tone to a default preset as fallback
+    const toneToPreset: Record<string, PresetName> = {
+      professional: "startup-modern",
+      playful: "bold-creative",
+      minimal: "minimal-elegant",
+      bold: "bold-creative",
+      elegant: "minimal-elegant",
+      futuristic: "glass-gradient",
+    };
+    resolvedPreset = toneToPreset[brief.tone] || "startup-modern";
+  }
+
+  if (!resolvedPreset) {
+    resolvedPreset = detectPresetFromStyleGuide(styleGuide);
+  }
+
+  // ─── Step 3: Extract user colors (or defaults) ───
   const primaryHex = getHex(styleGuide?.colors?.primary, DEFAULT_COLORS.primary);
   const secondaryHex = getHex(
     styleGuide?.colors?.secondary,
@@ -2542,12 +2650,12 @@ export function buildDesignIdentity(
   );
   const accentHex = getHex(styleGuide?.colors?.accent, DEFAULT_COLORS.accent);
 
-  // ─── Step 3: Generate full palettes ───
+  // ─── Step 4: Generate full palettes ───
   const primaryPalette = generatePalette(primaryHex);
   const secondaryPalette = generatePalette(secondaryHex);
   const accentPalette = generatePalette(accentHex);
 
-  // ─── Step 4: Extract user fonts (or defaults) ───
+  // ─── Step 5: Extract user fonts (or defaults) ───
   let headingFont = "Inter";
   let bodyFont = "Inter";
 
@@ -2569,26 +2677,34 @@ export function buildDesignIdentity(
     }
   }
 
-  // ─── Step 5: Build identity from preset with user overrides ───
+  // ─── Step 6: Build identity from preset with user overrides ───
   const builder = PRESET_BUILDERS[resolvedPreset];
   if (!builder) {
-    // Fallback to startup-modern if somehow invalid preset
-    return PRESET_BUILDERS["startup-modern"](
+    const identity = PRESET_BUILDERS["startup-modern"](
       primaryPalette,
       secondaryPalette,
       accentPalette,
       headingFont,
       bodyFont
     );
+    if (brief) applyBriefToContent(identity, brief);
+    return identity;
   }
 
-  return builder(
+  const identity = builder(
     primaryPalette,
     secondaryPalette,
     accentPalette,
     headingFont,
     bodyFont
   );
+
+  // ─── Step 7: Apply brief overrides to content ───
+  if (brief) {
+    applyBriefToContent(identity, brief);
+  }
+
+  return identity;
 }
 
 

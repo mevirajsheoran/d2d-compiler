@@ -13,6 +13,7 @@ import {
   FREEHAND_TOOLS,
   Tool,
 } from "@/redux/slice/shapes";
+import type { SnapGuide } from "@/hooks/use-canvas";
 
 // Previews for specific shapes
 import { RectanglePreview } from "./shapes/rectangle/preview";
@@ -109,7 +110,6 @@ function DraftPreview({
       case "divider":
         return <DividerPreview x={x} y={y} w={w} h={h} />;
       default:
-        // All other bounded shapes use generic preview
         return <GenericBoundedPreview x={x} y={y} w={w} h={h} />;
     }
   }
@@ -118,7 +118,7 @@ function DraftPreview({
 }
 
 /* ======================================================
-   Freehand Preview - picks between stroke and highlighter
+   Freehand Preview
 ====================================================== */
 function FreehandPreview({
   tool,
@@ -134,6 +134,89 @@ function FreehandPreview({
   }
 
   return <StrokePreview points={points} />;
+}
+
+/* ======================================================
+   Marquee Selection Rectangle
+====================================================== */
+function MarqueePreview({
+  startX,
+  startY,
+  endX,
+  endY,
+}: {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}) {
+  const x = Math.min(startX, endX);
+  const y = Math.min(startY, endY);
+  const w = Math.abs(endX - startX);
+  const h = Math.abs(endY - startY);
+
+  if (w < 1 && h < 1) return null;
+
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: x,
+        top: y,
+        width: w,
+        height: h,
+        backgroundColor: "rgba(59, 130, 246, 0.08)",
+        border: "1.5px solid rgba(59, 130, 246, 0.6)",
+        borderRadius: 2,
+      }}
+    />
+  );
+}
+
+/* ======================================================
+   Snap Alignment Guide Lines
+====================================================== */
+function SnapGuidesOverlay({ guides }: { guides: SnapGuide[] }) {
+  if (guides.length === 0) return null;
+
+  return (
+    <svg
+      className="absolute pointer-events-none overflow-visible"
+      style={{ left: 0, top: 0, width: 1, height: 1, zIndex: 9999 }}
+    >
+      {guides.map((guide, i) => {
+        if (guide.type === "vertical") {
+          return (
+            <line
+              key={`snap-v-${i}`}
+              x1={guide.position}
+              y1={guide.start}
+              x2={guide.position}
+              y2={guide.end}
+              stroke="#3b82f6"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.8}
+            />
+          );
+        } else {
+          return (
+            <line
+              key={`snap-h-${i}`}
+              x1={guide.start}
+              y1={guide.position}
+              x2={guide.end}
+              y2={guide.position}
+              stroke="#3b82f6"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.8}
+            />
+          );
+        }
+      })}
+    </svg>
+  );
 }
 
 /* ======================================================
@@ -158,6 +241,8 @@ export function InfiniteCanvas() {
     getDraftShape,
     getFreeDrawPoints,
     getCurrentFreehandTool,
+    getMarquee,
+    getSnapGuides,
     startResize,
     startLineEndpointDrag,
   } = useCanvas();
@@ -168,6 +253,8 @@ export function InfiniteCanvas() {
   const draftShape = getDraftShape();
   const freeDrawPoints = getFreeDrawPoints();
   const freehandTool = getCurrentFreehandTool();
+  const marquee = getMarquee();
+  const snapGuides = getSnapGuides();
 
   // Cursor based on tool
   const getCursor = () => {
@@ -257,6 +344,19 @@ export function InfiniteCanvas() {
             freeDrawPoints.length > 1 && (
               <FreehandPreview tool={freehandTool} points={freeDrawPoints} />
             )}
+
+          {/* Marquee selection preview */}
+          {marquee && (
+            <MarqueePreview
+              startX={marquee.startX}
+              startY={marquee.startY}
+              endX={marquee.endX}
+              endY={marquee.endY}
+            />
+          )}
+
+          {/* Snap alignment guides */}
+          <SnapGuidesOverlay guides={snapGuides} />
         </div>
       </div>
     </>
