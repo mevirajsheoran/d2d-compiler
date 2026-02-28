@@ -123,20 +123,30 @@ function getSectionBackground(
 ): string {
   switch (sectionType) {
     case "nav":
-      return ""; // Nav has its own bg
+      return ""; // Nav has its own bg in wrapper
     case "hero-centered":
     case "hero-split":
       return identity.backgrounds.hero;
     case "cta":
       return identity.backgrounds.cta;
     case "footer":
-      return identity.backgrounds.subtle;
+      return identity.sections.footer.includes("bg-")
+        ? "" // Footer section preset already has bg
+        : identity.backgrounds.inverse;
     case "features":
+      // Features always get subtle bg for contrast with hero above
+      return identity.backgrounds.subtle;
     case "stats":
-      return sectionIndex % 2 === 0 ? "" : identity.backgrounds.subtle;
+      return identity.backgrounds.accent;
     case "form":
       return identity.backgrounds.subtle;
+    case "content-split":
+      // Alternate: even = no bg (white), odd = subtle bg
+      return sectionIndex % 2 === 0 ? "" : identity.backgrounds.subtle;
+    case "card-grid":
+      return sectionIndex % 2 === 0 ? identity.backgrounds.subtle : "";
     default:
+      // Generic sections alternate to create visual rhythm
       return sectionIndex % 2 === 0 ? "" : identity.backgrounds.subtle;
   }
 }
@@ -913,21 +923,33 @@ export function generateCode(
     );
 
     if (section.type === "nav") {
-      // Nav renders its own wrapper
-      lines.push(
-        renderSection(section, identity, contentMap, baseIndent + 1)
+      // Nav renders its own wrapper — stagger delay 0ms (first element)
+      const navHtml = renderSection(section, identity, contentMap, baseIndent + 1);
+      // Add animation delay to the outermost nav element
+      const navWithStagger = navHtml.replace(
+        /^(\s*<(?:nav|header)\s)/,
+        `$1style={{ animationDelay: "0ms" }} `
       );
+      lines.push(navWithStagger);
       lines.push("");
     } else if (section.type === "footer") {
       // Footer section
       const bg = getSectionBackground(identity, section.type, contentSectionIndex);
       const wrapper = renderSectionWrapper(identity, baseIndent + 1, "footer", bg);
-      lines.push(wrapper.open);
+
+      // Footer gets the last stagger delay
+      const footerIdx = contentSectionIndex + 2;
+      const footerWithStagger = wrapper.open.replace(
+        /^(\s*<(?:section|footer)\s)/,
+        `$1style={{ animationDelay: "${footerIdx * 100}ms" }} `
+      );
+
+      lines.push(footerWithStagger);
       lines.push(
         renderSection(section, identity, contentMap, baseIndent + 3)
       );
       lines.push(wrapper.close);
-    } else {
+       } else {
       // Content sections wrapped in <main>
       const bg = getSectionBackground(identity, section.type, contentSectionIndex);
       const wrapper = renderSectionWrapper(identity, baseIndent + 2, section.type, bg);
@@ -939,7 +961,17 @@ export function generateCode(
         );
       }
 
-      lines.push(wrapper.open);
+      // Add animation stagger delay per section
+      const sectionIdx = contentSectionIndex + 1; // +1 because nav is index 0
+      const staggerStyle = ` style={{ animationDelay: "${sectionIdx * 100}ms" }}`;
+
+      // Inject stagger into wrapper open tag
+      const wrapperWithStagger = wrapper.open.replace(
+        /^(\s*<section\s)/,
+        `$1${staggerStyle} `
+      );
+
+      lines.push(wrapperWithStagger);
       lines.push(
         renderSection(section, identity, contentMap, baseIndent + 4)
       );

@@ -4,8 +4,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { StyleGuide, ColorSection, TypographySection } from "@/types/style-guide";
+import {
+  StyleGuide,
+  ColorSection,
+  TypographySection,
+  DesignBrief,
+} from "@/types/style-guide";
 import { toast } from "sonner";
+
+const DEFAULT_BRIEF: DesignBrief = {
+  pageType: "",
+  industry: "",
+  tone: "",
+  brandName: "",
+  tagline: "",
+};
 
 const DEFAULT_STYLE_GUIDE: StyleGuide = {
   colors: {
@@ -16,6 +29,8 @@ const DEFAULT_STYLE_GUIDE: StyleGuide = {
     semantic: [],
   },
   typography: [],
+  brief: undefined,
+  preset: undefined,
 };
 
 interface UseStyleGuideProps {
@@ -54,6 +69,8 @@ export function useStyleGuide({ projectId }: UseStyleGuideProps) {
               ...DEFAULT_STYLE_GUIDE.colors,
               ...(parsed.colors || {}),
             },
+            brief: parsed.brief || undefined,
+            preset: parsed.preset || undefined,
           });
         } catch {
           setStyleGuide(DEFAULT_STYLE_GUIDE);
@@ -213,6 +230,65 @@ export function useStyleGuide({ projectId }: UseStyleGuideProps) {
     [scheduleAutoSave]
   );
 
+  // ============================================
+  // BRIEF OPERATIONS (NEW)
+  // ============================================
+
+  /**
+   * Set the entire brief object at once.
+   */
+  const setBrief = useCallback(
+    (brief: DesignBrief) => {
+      setStyleGuide((prev) => {
+        const updated = { ...prev, brief };
+        scheduleAutoSave(updated);
+        return updated;
+      });
+    },
+    [scheduleAutoSave]
+  );
+
+  /**
+   * Update a single field of the brief.
+   * Creates the brief with defaults if it doesn't exist yet.
+   */
+  const updateBriefField = useCallback(
+    (field: keyof DesignBrief, value: string) => {
+      setStyleGuide((prev) => {
+        const currentBrief: DesignBrief = prev.brief || { ...DEFAULT_BRIEF };
+        const updated = {
+          ...prev,
+          brief: { ...currentBrief, [field]: value },
+        };
+        scheduleAutoSave(updated);
+        return updated;
+      });
+    },
+    [scheduleAutoSave]
+  );
+
+  // ============================================
+  // PRESET OPERATIONS (NEW)
+  // ============================================
+
+  /**
+   * Set the design preset name.
+   */
+  const setPreset = useCallback(
+    (presetName: string) => {
+      setStyleGuide((prev) => {
+        const updated = { ...prev, preset: presetName };
+        scheduleAutoSave(updated);
+        return updated;
+      });
+    },
+    [scheduleAutoSave]
+  );
+
+  // ============================================
+  // SAVE
+  // ============================================
+
   // Manual save
   const saveNow = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -236,6 +312,13 @@ export function useStyleGuide({ projectId }: UseStyleGuideProps) {
     // Typography operations
     setTypography,
     updateTypographyStyle,
+
+    // Brief operations (NEW)
+    setBrief,
+    updateBriefField,
+
+    // Preset operations (NEW)
+    setPreset,
 
     // Save
     saveNow,

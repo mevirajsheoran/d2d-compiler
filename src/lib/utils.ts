@@ -65,3 +65,18 @@ export const truncate = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + "...";
 };
+
+
+/**
+ * HTML-escape user-supplied text to prevent XSS.
+ * Used when inserting brand name, tagline, or any user text
+ * into generated HTML code.
+ */
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

@@ -1,7 +1,5 @@
-// src/lib/ai-pipeline/index.ts
-
 /* ══════════════════════════════════════════════════════════════════════════════
-   MAIN PIPELINE ORCHESTRATOR — v2
+   MAIN PIPELINE ORCHESTRATOR — v3
    
    The complete deterministic pipeline that produces v0-level output
    with ZERO AI calls, ₹0 cost, and < 100ms speed.
@@ -10,9 +8,16 @@
    Phase 2:    CLASSIFIER      → Assign UI role to each shape
    Phase 3:    ARCHITECT       → Build hierarchy tree
    Phase 3.5:  ENHANCER        → Apply design pattern upgrades (13 rules)
-   Phase 4:    DESIGN IDENTITY → Build complete design system from style guide
+   Phase 4:    DESIGN IDENTITY → Build complete design system from style guide + brief
    Phase 5:    SECTION ENGINE  → Detect page sections (nav, hero, form, etc.)
    Phase 6:    BUILDER         → Assemble sections with rich components + smart content
+   
+   v3.0 additions:
+   - Design Brief (industry, tone, brand) feeds into identity + content
+   - Industry-specific content banks replace generic placeholders
+   - Brand name permeation through nav, footer, CTA, forms
+   - Section background composition for visual rhythm
+   - Animation stagger for entrance effects
    
    Output: 100-500 line React + Tailwind component
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -39,6 +44,9 @@ export async function generateFromFrame(
   _mode?: string
 ): Promise<string> {
   const startTime = performance.now();
+
+  // ─── Extract brief info for logging ───
+  const brief = styleGuide?.brief;
 
   // ─── Phase 1: Extract shapes inside frame ───
   const extracted = extractShapesFromFrame(frame, allShapes);
@@ -81,8 +89,8 @@ export async function generateFromFrame(
   // ─── Phase 3.5: Apply design pattern enhancements (13 rules) ───
   tree = enhanceTree(tree);
 
-  // ─── Phase 4: Build Design Identity from style guide ───
-  const presetName = (styleGuide as Record<string, unknown> | null)?.preset as PresetName | undefined;
+  // ─── Phase 4: Build Design Identity from style guide + brief ───
+  const presetName = styleGuide?.preset as PresetName | undefined;
   const identity = buildDesignIdentity(styleGuide, presetName);
 
   // ─── Phase 5: Detect page sections ───
@@ -93,7 +101,12 @@ export async function generateFromFrame(
 
   const duration = Math.round(performance.now() - startTime);
   console.log(
-    `[D2D Pipeline] Generated in ${duration}ms | ${sections.length} sections | ${code.split("\n").length} lines | Preset: ${identity.name}`
+    `[D2D Pipeline v3] Generated in ${duration}ms | ` +
+    `${sections.length} sections | ` +
+    `${code.split("\n").length} lines | ` +
+    `Preset: ${identity.name} | ` +
+    `Industry: ${brief?.industry || "none"} | ` +
+    `Brand: ${brief?.brandName || "none"}`
   );
 
   return code;

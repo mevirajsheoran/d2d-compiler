@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 s2c-boiler-plate/
+
+x.docs
+combined.docs
+compare.docs
