@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/section-engine.ts
+// src/lib/design-engine-pipeline/section-engine.ts
 
 /* ══════════════════════════════════════════════════════════════════════════════
    SECTION ENGINE
@@ -140,14 +140,15 @@ function groupCenterY(nodes: FlatNode[]): number {
 }
 
 /**
- * Check if a text node looks like a heading (H1 or H2).
+ * Check if a text node looks like a heading (H1, H2, or H3).
+ * v4.0: Expanded from H1-H2 to also accept H3,
+ * because users often draw headings at medium font sizes.
  */
 function isLargeHeading(node: UINode): boolean {
   if (node.role !== "heading") return false;
-  const level = (node.properties?.headingLevel as number) ?? 3;
-  return level <= 2;
+  const level = (node.properties?.headingLevel as number) ?? 5;
+  return level <= 3; // was: level <= 2
 }
-
 /**
  * Create a slot assignment.
  */
@@ -237,6 +238,17 @@ function detectNav(
       nodeIds.push(n.node.id);
     }
   }
+    // v5.0: Consume dividers immediately below nav to prevent leaking to generic
+  const navBottom = Math.max(...nodeIds.map((id) => {
+    const n = available.find((a) => a.node.id === id);
+    return n ? n.absY + n.node.height : 0;
+  }));
+  const dividersBelowNav = withRole(available, "divider").filter(
+    (d) => !nodeIds.includes(d.node.id) && d.absY >= navBottom && d.absY <= navBottom + 30
+  );
+  for (const d of dividersBelowNav) {
+    nodeIds.push(d.node.id);
+  }
 
   return {
     type: "nav",
@@ -266,7 +278,37 @@ function detectHero(
   const upperThreshold = frameHeight * 0.45;
   const upperNodes = available.filter((n) => n.absY < upperThreshold);
 
-  const headings = upperNodes.filter((n) => isLargeHeading(n.node));
+  let headings = upperNodes.filter((n) => isLargeHeading(n.node));
+
+  // ═══ v4.0 FIX: If no headings found directly, check if there's a
+  // container/card in the upper area that CONTAINS a heading child.
+  // This handles the case where user draws a rectangle with text inside. ═══
+  if (headings.length === 0) {
+    const upperContainers = upperNodes.filter(
+      (n) => n.node.role === "container" || n.node.role === "card"
+    );
+    for (const container of upperContainers) {
+      const headingChild = container.node.children.find(
+        (c) => c.role === "heading"
+      );
+      if (headingChild) {
+        // Create a synthetic flat node for this heading at the container's position
+        headings.push({
+          node: headingChild,
+          absX: container.absX,
+          absY: container.absY,
+          depth: container.depth + 1,
+          parentId: container.node.id,
+        });
+      }
+    }
+  }
+
+  // Also try: any heading at all in the upper portion (even H4)
+  if (headings.length === 0) {
+    headings = upperNodes.filter((n) => n.node.role === "heading");
+  }
+  // ═══ v4.0 FIX END ═══
   if (headings.length === 0) return null;
 
   const heroHeading = headings[0];
@@ -489,6 +531,62 @@ function detectFeatures(
   available: FlatNode[],
   frameWidth: number
 ): DetectedSection | null {
+
+  // ═══ v4.0 ADDITION: Grid Container Detection ═══
+  const gridNodes = available.filter((n) => n.node.properties?.isGrid);
+  if (gridNodes.length > 0) {
+    const gridNode = gridNodes[0];
+    const slots: SlotAssignment[] = [];
+    const nodeIds: string[] = [];
+
+    // Section heading above the grid
+    const gridTopY = gridNode.absY;
+    const headingsAbove = withRole(available, "heading").filter(
+      (n) =>
+        n.absY < gridTopY &&
+        n.absY > gridTopY - 150 &&
+        !nodeIds.includes(n.node.id)
+    );
+    if (headingsAbove.length > 0) {
+      slots.push(slot("section-heading", headingsAbove[0]));
+      nodeIds.push(headingsAbove[0].node.id);
+    }
+
+    // Section description above the grid
+    const descAbove = withRole(available, "paragraph").filter(
+      (n) =>
+        n.absY < gridTopY &&
+        n.absY > gridTopY - 120 &&
+        !nodeIds.includes(n.node.id)
+    );
+    if (descAbove.length > 0) {
+      slots.push(slot("section-description", descAbove[0]));
+      nodeIds.push(descAbove[0].node.id);
+    }
+
+    // Grid container itself
+    slots.push(slot("grid-container", gridNode));
+    nodeIds.push(gridNode.node.id);
+
+    // Consume all descendants of the grid container
+    const allDesc = flattenTree(gridNode.node);
+    for (const d of allDesc) {
+      if (!nodeIds.includes(d.node.id)) {
+        nodeIds.push(d.node.id);
+      }
+    }
+
+    return {
+      type: "features",
+      confidence: 0.9,
+      nodeIds,
+      slots,
+      position: "middle",
+      orderIndex: 3,
+    };
+  }
+  // ═══ v4.0 ADDITION END ═══
+
   // Strategy 1: Look for cards/containers in a horizontal row
   const cards = withRole(available, "card", "container").filter(
     (n) => n.node.children.length >= 1 && n.node.width < frameWidth * 0.6
@@ -786,7 +884,7 @@ function detectCTA(
         b.absY > heading.absY &&
         b.absY < heading.absY + heading.node.height + 150 &&
         Math.abs(b.absX + b.node.width / 2 - (heading.absX + heading.node.width / 2)) <
-          300
+        300
     );
 
     if (nearbyButtons.length >= 1 && nearbyButtons.length <= 3) {

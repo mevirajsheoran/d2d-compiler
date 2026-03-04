@@ -6,10 +6,10 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Code2, Eye, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buildPreviewHtml, highlightCode } from "@/lib/ai-pipeline/preview-builder";
+import { buildPreviewHtml, highlightCode } from "@/lib/design-engine-pipeline/preview-builder";
 import { ResponsiveToggle, getViewportWidth, type ViewportSize } from "./responsive-toggle";
 import { ExportOptions } from "./export-options";
-import type { Variation } from "@/lib/ai-pipeline/variation-generator";
+import type { Variation } from "@/lib/design-engine-pipeline/variation-generator";
 import {
   Select,
   SelectContent,

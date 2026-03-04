@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/enhancer.ts
+// src/lib/design-engine-pipeline/enhancer.ts
 
 import type { UINode, UIRole } from "./types";
 
@@ -106,6 +106,22 @@ function ruleAutoResponsiveGrid(node: UINode): UINode {
   };
 
   if (enhanced.layout !== "row") return enhanced;
+
+  // ═══ v4.0 ADDITION: START ═══
+  // If any child is already a detected grid container, mark it
+  // with a css-grid hint and skip the flex-based responsive-grid logic
+  for (let i = 0; i < enhanced.children.length; i++) {
+    const child = enhanced.children[i];
+    if (child.properties?.isGrid) {
+      const r = child.properties.gridRows as number;
+      const c = child.properties.gridCols as number;
+      enhanced.children[i] = {
+        ...child,
+        enhancementHints: [...child.enhancementHints, `css-grid-${r}x${c}`],
+      };
+    }
+  }
+  // ═══ v4.0 ADDITION: END ═══
 
   const cards = childrenWithin(enhanced.children, ["card", "container"]);
   if (cards.length < 2 || cards.length > 4) return enhanced;
@@ -329,7 +345,7 @@ function ruleAutoFooter(node: UINode): UINode {
 
 
 // ══════════════════════════════════════════════════════════
-// ADD THESE NEW RULES to src/lib/ai-pipeline/enhancer.ts
+// ADD THESE NEW RULES to src/lib/design-engine-pipeline/enhancer.ts
 // Place them AFTER rule 8 (ruleAutoFooter) and BEFORE enhanceTree
 // ══════════════════════════════════════════════════════════
 
@@ -392,13 +408,13 @@ function ruleCTASection(node: UINode): UINode {
    ══════════════════════════════════════════════════════════ */
 function ruleStatsSection(node: UINode): UINode {
   if (node.layout !== "row") return node;
-  
+
   const headings = childrenWithin(node.children, ["heading"]);
   if (headings.length < 3) return node;
 
   // Check if headings have short text (likely numbers)
   const allShort = headings.every(h => (h.text || "").length <= 10);
-  
+
   if (allShort) {
     return {
       ...node,

@@ -1,57 +1,33 @@
-// src/lib/ai-pipeline/architect.ts
+// src/lib/design-engine-pipeline/architect.ts
 
-import type { ClassifiedComponent, UINode } from "./types";
+import type { ClassifiedComponent, UINode, DetectedGrid } from "./types";
 
 /* ══════════════════════════════════════════════════════════
-   FIX 1: OVERLAP RATIO CONTAINMENT
-   
-   Instead of checking if child's center is inside parent,
-   we check if >= 70% of child's area overlaps with parent.
-   
-   This prevents false negatives where a shape is mostly
-   inside a container but its center falls outside.
+   OVERLAP RATIO CONTAINMENT (unchanged)
    ══════════════════════════════════════════════════════════ */
 function containmentRatio(
   parent: ClassifiedComponent,
   child: ClassifiedComponent
 ): number {
-  // Can't contain yourself
   if (parent.id === child.id) return 0;
-
-  // Only containers, cards, and device-wrappers can be parents
   const containerRoles = ["container", "card", "device-wrapper"];
   if (!containerRoles.includes(parent.role)) return 0;
 
-  // Calculate intersection rectangle
   const ix1 = Math.max(parent.relX, child.relX);
   const iy1 = Math.max(parent.relY, child.relY);
   const ix2 = Math.min(parent.relX + parent.width, child.relX + child.width);
-  const iy2 = Math.min(
-    parent.relY + parent.height,
-    child.relY + child.height
-  );
+  const iy2 = Math.min(parent.relY + parent.height, child.relY + child.height);
 
-  // No intersection
   if (ix2 <= ix1 || iy2 <= iy1) return 0;
 
   const intersectionArea = (ix2 - ix1) * (iy2 - iy1);
   const childArea = child.width * child.height;
-
   if (childArea === 0) return 0;
   return intersectionArea / childArea;
 }
 
 /* ══════════════════════════════════════════════════════════
-   FIX 2: RELATIVE ROW/COLUMN THRESHOLD
-   
-   Instead of a fixed 30px threshold for "same row",
-   we use an adaptive threshold based on frame size
-   and average child height.
-   
-   threshold = min(5% of frame height, 50% of avg child height)
-   
-   This works correctly for both phone frames (812px)
-   and desktop frames (900px).
+   ADAPTIVE ROW/COLUMN DETECTION (unchanged)
    ══════════════════════════════════════════════════════════ */
 function detectLayout(
   nodes: ClassifiedComponent[],
@@ -59,12 +35,10 @@ function detectLayout(
 ): "row" | "column" {
   if (nodes.length <= 1) return "column";
 
-  // Calculate adaptive threshold
   const avgHeight =
     nodes.reduce((sum, n) => sum + n.height, 0) / nodes.length;
   const threshold = Math.min(frameHeight * 0.05, avgHeight * 0.5);
 
-  // Count how many consecutive pairs share similar Y positions
   let sameRowPairs = 0;
   for (let i = 1; i < nodes.length; i++) {
     if (Math.abs(nodes[i].relY - nodes[i - 1].relY) < threshold) {
@@ -72,35 +46,24 @@ function detectLayout(
     }
   }
 
-  // If more than half of pairs are on same row → row layout
-  if (sameRowPairs > (nodes.length - 1) / 2) {
-    return "row";
-  }
-
-  return "column";
+  return sameRowPairs > (nodes.length - 1) / 2 ? "row" : "column";
 }
 
 /* ══════════════════════════════════════════════════════════
-   Snap a pixel value to the nearest Tailwind spacing unit
+   v4.0: EXTENDED GAP SNAP SCALE
+   
+   Added larger values (80–256) so tall frames preserve
+   intentional blank space instead of capping at 64px.
    ══════════════════════════════════════════════════════════ */
 function snapGap(px: number): number {
-  const scale = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64];
+  const scale = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128, 160, 192, 256];
   return scale.reduce((prev, curr) =>
     Math.abs(curr - px) < Math.abs(prev - px) ? curr : prev
   );
 }
 
 /* ══════════════════════════════════════════════════════════
-   FIX 3: PER-GAP PRESERVATION
-   
-   Instead of averaging all gaps into one number,
-   we calculate the gap between each consecutive pair
-   and store them as a gaps[] array.
-   
-   This preserves intentional spacing differences like:
-   - 40px after a heading
-   - 16px between form fields
-   - 32px before a submit button
+   PER-GAP CALCULATION (unchanged logic, extended scale)
    ══════════════════════════════════════════════════════════ */
 function calculateGaps(
   nodes: ClassifiedComponent[],
@@ -108,25 +71,47 @@ function calculateGaps(
 ): number[] {
   if (nodes.length <= 1) return [];
 
-  // Sort by position in the layout direction
   const sorted = [...nodes].sort((a, b) =>
     direction === "row" ? a.relX - b.relX : a.relY - b.relY
   );
 
   const gaps: number[] = [];
-
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
     const curr = sorted[i];
-
     let gap: number;
     if (direction === "row") {
       gap = curr.relX - (prev.relX + prev.width);
     } else {
       gap = curr.relY - (prev.relY + prev.height);
     }
+    gaps.push(snapGap(Math.max(gap, 0)));
+  }
 
-    // Snap each individual gap to Tailwind scale
+  return gaps;
+}
+
+/** Same as calculateGaps but works on UINodes (for post-processing) */
+function calculateGapsForNodes(
+  nodes: UINode[],
+  direction: "row" | "column"
+): number[] {
+  if (nodes.length <= 1) return [];
+
+  const sorted = [...nodes].sort((a, b) =>
+    direction === "row" ? a.relX - b.relX : a.relY - b.relY
+  );
+
+  const gaps: number[] = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    let gap: number;
+    if (direction === "row") {
+      gap = curr.relX - (prev.relX + prev.width);
+    } else {
+      gap = curr.relY - (prev.relY + prev.height);
+    }
     gaps.push(snapGap(Math.max(gap, 0)));
   }
 
@@ -134,7 +119,7 @@ function calculateGaps(
 }
 
 /* ══════════════════════════════════════════════════════════
-   Create an empty root node (for empty frames)
+   EMPTY ROOT (unchanged)
    ══════════════════════════════════════════════════════════ */
 function makeEmptyRoot(w: number, h: number): UINode {
   return {
@@ -147,7 +132,7 @@ function makeEmptyRoot(w: number, h: number): UINode {
     children: [],
     layout: "column",
     gaps: [],
-    properties: {},
+    properties: { frameWidth: w, frameHeight: h, frameRatio: h / w },
     enhancementHints: [],
   };
 }
@@ -155,71 +140,52 @@ function makeEmptyRoot(w: number, h: number): UINode {
 /* ══════════════════════════════════════════════════════════
    MAIN ARCHITECT FUNCTION
    
-   Converts a flat list of classified components into
-   a nested tree (UINode) structure.
-   
-   Algorithm:
-   1. For each component, find the SMALLEST container
-      that contains >= 70% of its area → that's its parent
-   2. Group children by their parent
-   3. Recursively build tree nodes
-   4. Detect row vs column layout per group
-   5. Calculate per-gap spacing
+   v4.0: Root node now stores frame dimensions and ratio
+   in properties for downstream blank-space handling.
    ══════════════════════════════════════════════════════════ */
 export function buildHierarchy(
   components: ClassifiedComponent[],
   frameWidth: number,
   frameHeight: number
 ): UINode {
-  // Empty frame
   if (components.length === 0) {
     return makeEmptyRoot(frameWidth, frameHeight);
   }
 
-  // ─── Step 1: Find parent for each component ───
-  // Each child gets assigned to its SMALLEST containing parent
+  // Step 1: Find parent for each component
   const parentMap = new Map<string, string | null>();
-
   for (const child of components) {
     let bestParent: ClassifiedComponent | null = null;
     let bestArea = Infinity;
-
     for (const candidate of components) {
       if (candidate.id === child.id) continue;
-
       const ratio = containmentRatio(candidate, child);
-      if (ratio < 0.7) continue; // Must be >= 70% contained
-
+      if (ratio < 0.7) continue;
       const area = candidate.width * candidate.height;
       if (area < bestArea) {
         bestArea = area;
         bestParent = candidate;
       }
     }
-
     parentMap.set(child.id, bestParent?.id ?? null);
   }
 
-  // ─── Step 2: Group children by parent ───
+  // Step 2: Group children by parent
   const childrenOf = new Map<string | null, ClassifiedComponent[]>();
   childrenOf.set(null, []);
-
   for (const comp of components) {
     const pid = parentMap.get(comp.id) ?? null;
     if (!childrenOf.has(pid)) childrenOf.set(pid, []);
     childrenOf.get(pid)!.push(comp);
   }
 
-  // ─── Step 3: Recursively build tree ───
+  // Step 3: Recursively build tree
   function buildNode(comp: ClassifiedComponent): UINode {
     const directChildren = childrenOf.get(comp.id) || [];
     const layout = detectLayout(directChildren, frameHeight);
-
-    // Sort children by position in their layout direction
     const sorted = [...directChildren].sort((a, b) =>
       layout === "row" ? a.relX - b.relX : a.relY - b.relY
     );
-
     const gaps = calculateGaps(sorted, layout);
 
     return {
@@ -238,14 +204,12 @@ export function buildHierarchy(
     };
   }
 
-  // ─── Step 4: Build root node from top-level children ───
+  // Step 4: Build root node
   const rootChildren = childrenOf.get(null) || [];
   const rootLayout = detectLayout(rootChildren, frameHeight);
-
   const sortedRoot = [...rootChildren].sort((a, b) =>
     rootLayout === "row" ? a.relX - b.relX : a.relY - b.relY
   );
-
   const rootGaps = calculateGaps(sortedRoot, rootLayout);
 
   return {
@@ -258,7 +222,110 @@ export function buildHierarchy(
     children: sortedRoot.map(buildNode),
     layout: rootLayout,
     gaps: rootGaps,
-    properties: {},
+    properties: {
+      frameWidth,
+      frameHeight,
+      frameRatio: frameHeight / frameWidth,
+    },
     enhancementHints: [],
   };
+}
+
+/* ══════════════════════════════════════════════════════════
+   v4.0: GRID CONTAINER INJECTION (post-processing)
+   
+   After the tree is built normally, this function finds
+   grid member nodes and groups them into a single grid
+   container node — preserving each member's internal
+   children (headings, paragraphs, images inside cards).
+   ══════════════════════════════════════════════════════════ */
+export function injectGridContainers(
+  tree: UINode,
+  detectedGrids: DetectedGrid[]
+): UINode {
+  if (!detectedGrids || detectedGrids.length === 0) return tree;
+
+  let result = tree;
+
+  for (const grid of detectedGrids) {
+    result = injectOneGrid(result, grid);
+  }
+
+  return result;
+}
+
+function injectOneGrid(node: UINode, grid: DetectedGrid): UINode {
+  // Recursively process children first
+  let updated: UINode = {
+    ...node,
+    children: node.children.map((child) => injectOneGrid(child, grid)),
+  };
+
+  // Check if this node's direct children contain ALL grid members
+  const childIds = new Set(updated.children.map((c) => c.id));
+  const membersHere = grid.memberIds.filter((id) => childIds.has(id));
+
+  if (membersHere.length !== grid.memberIds.length) return updated;
+
+  // All grid members are direct children — group them
+  const memberNodes = updated.children.filter((c) =>
+    grid.memberIds.includes(c.id)
+  );
+
+  const minX = Math.min(...memberNodes.map((n) => n.relX));
+  const minY = Math.min(...memberNodes.map((n) => n.relY));
+  const maxX = Math.max(...memberNodes.map((n) => n.relX + n.width));
+  const maxY = Math.max(...memberNodes.map((n) => n.relY + n.height));
+
+  // Order members in row-major order from the assignment matrix
+  const orderedMembers: UINode[] = [];
+  for (const row of grid.assignment) {
+    for (const memberId of row) {
+      const member = memberNodes.find((n) => n.id === memberId);
+      if (member) orderedMembers.push(member);
+    }
+  }
+
+  const gridNode: UINode = {
+    id: `grid-${grid.rows}x${grid.cols}-${Math.round(minY)}`,
+    role: "container",
+    relX: minX,
+    relY: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+    text: "",
+    properties: {
+      isGrid: true,
+      gridRows: grid.rows,
+      gridCols: grid.cols,
+      gridRowGap: grid.rowGap,
+      gridColGap: grid.colGap,
+      gridAssignment: grid.assignment,
+      gridMemberIds: grid.memberIds,
+    },
+    children: orderedMembers,
+    layout: "row",
+    gaps: [],
+    enhancementHints: [],
+  };
+
+  // Replace member nodes with the grid container
+  const newChildren: UINode[] = [];
+  let gridInserted = false;
+
+  for (const child of updated.children) {
+    if (grid.memberIds.includes(child.id)) {
+      if (!gridInserted) {
+        newChildren.push(gridNode);
+        gridInserted = true;
+      }
+    } else {
+      newChildren.push(child);
+    }
+  }
+
+  // Recalculate gaps for the updated children list
+  const newGaps = calculateGapsForNodes(newChildren, updated.layout);
+
+  return { ...updated, children: newChildren, gaps: newGaps };
 }

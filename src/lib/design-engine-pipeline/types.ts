@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/types.ts
+// src/lib/design-engine-pipeline/types.ts
 
 import type { Shape } from "@/redux/slice/shapes";
 
@@ -466,4 +466,178 @@ export interface DesignTokens {
     shadow: "none" | "sm" | "md" | "lg";
     spacing: "compact" | "comfortable" | "spacious";
   };
+}
+// ═══════════════════════════════════════════════════════════
+// SPATIAL GRAPH TYPES (v4.0 — Grid Detection + Blank Space)
+// ═══════════════════════════════════════════════════════════
+
+/** The 6 axes on which two rectangles can align */
+export type AlignmentType =
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "center-x"
+  | "center-y";
+
+/** A single measured spatial relationship between two elements */
+export interface SpatialRelation {
+  type:
+    | AlignmentType
+    | "h-gap"
+    | "v-gap"
+    | "same-width"
+    | "same-height";
+  /** Continuous strength 0–1 (1 = perfect alignment) */
+  strength: number;
+  /** The raw pixel measurement that produced this strength */
+  rawValue: number;
+}
+
+/** A node in the spatial constraint graph */
+export interface SpatialNode {
+  id: string;
+  role: UIRole;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+  component: ClassifiedComponent;
+}
+
+/** An edge connecting two nodes with measured relationships */
+export interface SpatialEdge {
+  sourceId: string;
+  targetId: string;
+  relations: SpatialRelation[];
+}
+
+/** A group of elements sharing alignment on one axis */
+export interface AlignmentClique {
+  type: AlignmentType;
+  memberIds: string[];
+  avgStrength: number;
+  referenceValue: number;
+}
+
+/** The complete spatial constraint graph */
+export interface SpatialConstraintGraph {
+  nodes: SpatialNode[];
+  edges: SpatialEdge[];
+  topAlignedCliques: AlignmentClique[];
+  leftAlignedCliques: AlignmentClique[];
+}
+
+/** A detected CSS Grid layout */
+export interface DetectedGrid {
+  rows: number;
+  cols: number;
+  rowGap: number;
+  colGap: number;
+  /** Element IDs in row-major order: assignment[row][col] = elementId */
+  assignment: string[][];
+  memberIds: string[];
+  confidence: number;
+}
+
+
+
+// ═══════════════════════════════════════════════════════════
+// v5.0 — RECIPE SYSTEM TYPES
+// ═══════════════════════════════════════════════════════════
+
+/** Extended section types that only exist in recipe mode */
+export type RecipeSectionType =
+  | SectionType
+  | "logo-cloud"
+  | "testimonial"
+  | "newsletter"
+  | "trust-badges"
+  | "pricing-cards"
+  | "faq"
+  | "auth-card"
+  | "blog-hero"
+  | "blog-grid"
+  | "portfolio-grid"
+  | "dashboard-header"
+  | "dashboard-metrics"
+  | "dashboard-chart"
+  | "dashboard-table"
+  | "product-grid"
+  | "skills"
+  | "features-comparison"
+  | "reservation-form"
+  | "code-preview";
+
+/** A section in a page recipe */
+export interface SectionRecipe {
+  /** Section type identifier */
+  type: RecipeSectionType;
+  /** Display order (lower = higher on page). Nav=0, Footer=99. */
+  order: number;
+  /** Can the wireframe override this section? */
+  overridable: boolean;
+  /** Section-specific configuration */
+  config: Record<string, unknown>;
+  /** Background intent for visual rhythm */
+  bg?: "hero" | "page" | "subtle" | "accent" | "cta" | "inverse";
+}
+
+/** A complete page recipe */
+export interface PageRecipe {
+  pageType: string;
+  sections: SectionRecipe[];
+}
+
+/** A merged section — either from wireframe detection or recipe default */
+export interface MergedSection {
+  /** The section type to render */
+  type: RecipeSectionType;
+  /** Where the data comes from */
+  source: "wireframe" | "recipe";
+  /** If from wireframe, the detected section data */
+  detected?: DetectedSection;
+  /** If from recipe, the recipe configuration */
+  recipeConfig?: Record<string, unknown>;
+  /** Background intent */
+  bg?: "hero" | "page" | "subtle" | "accent" | "cta" | "inverse";
+  /** Render order */
+  order: number;
+}
+
+/** Rich content for recipe section rendering (per industry) */
+export interface RecipeContent {
+  // Stats
+  statsItems: Array<{ value: string; label: string }>;
+
+  // Testimonial
+  testimonialQuote: string;
+  testimonialAuthor: string;
+  testimonialRole: string;
+  testimonialCompany: string;
+
+  // Trust / Logo cloud
+  trustBadges: string[];
+  logoCloudNames: string[];
+  logoCloudLabel: string;
+
+  // Newsletter
+  newsletterHeading: string;
+  newsletterSubtext: string;
+  newsletterPlaceholder: string;
+  newsletterButton: string;
+
+  // Features section header
+  featuresSectionHeading: string;
+  featuresSectionSubtext: string;
+
+  // CTA
+  ctaHeading: string;
+  ctaSubtext: string;
+
+  // Footer
+  footerLinkGroups: string[][];
+  socialLinks: string[];
 }

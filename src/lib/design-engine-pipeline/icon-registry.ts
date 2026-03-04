@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/icon-registry.ts
+// src/lib/design-engine-pipeline/icon-registry.ts
 
 /* ══════════════════════════════════════════════════════════
    ICON REGISTRY

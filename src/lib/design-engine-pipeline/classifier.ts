@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/classifier.ts
+// src/lib/design-engine-pipeline/classifier.ts
 
 import type { TextShape } from "@/redux/slice/shapes";
 import type { ExtractedShape, ClassifiedComponent, UIRole } from "./types";
