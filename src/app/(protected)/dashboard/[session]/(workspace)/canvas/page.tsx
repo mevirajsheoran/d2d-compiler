@@ -13,6 +13,9 @@ import { restoreViewport, resetView } from "@/redux/slice/viewport";
 
 // v5.0: Generate button overlay
 import GenerateButton from "@/components/canvas/generate-button";
+// v5.0: Onboarding tour + frame hint
+import OnboardingTour from "@/components/canvas/onboarding-tour";
+import FrameHint from "@/components/canvas/frame-hint";
 
 /**
  * Rebuild EntityState from saved data
@@ -183,6 +186,8 @@ export default function CanvasPage() {
     <>
       <InfiniteCanvas />
       <GenerateButton session={session} projectId={projectId} />
+      <OnboardingTour />
+      <FrameHint />
     </>
   );
 }

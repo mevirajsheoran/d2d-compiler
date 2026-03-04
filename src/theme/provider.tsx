@@ -15,7 +15,11 @@ export function ThemeProvider({
 
   return (
     mounted && (
-      <NextThemesProvider {...props}>
+      <NextThemesProvider
+        defaultTheme="dark"
+        enableSystem={false}
+        {...props}
+      >
         {children}
       </NextThemesProvider>
     )
