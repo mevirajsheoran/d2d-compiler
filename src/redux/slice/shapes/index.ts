@@ -57,6 +57,7 @@ export interface FrameShape extends BaseShape {
   w: number;
   h: number;
   frameNumber: number;
+  name?: string;
 }
 
 export interface RectShape extends BaseShape {

@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/extractor.ts
+// src/lib/design-engine-pipeline/extractor.ts
 
 import type {
   Shape,

@@ -1,7 +1,6 @@
-// src/app/(protected)/dashboard/[session]/(workspace)/canvas/page.tsx
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/../convex/_generated/api";
 import { Id } from "@/../convex/_generated/dataModel";
@@ -11,6 +10,9 @@ import { useEffect, useRef } from "react";
 import { useAppDispatch } from "@/redux/store";
 import { loadProject, clearAll, Shape } from "@/redux/slice/shapes";
 import { restoreViewport, resetView } from "@/redux/slice/viewport";
+
+// v5.0: Generate button overlay
+import GenerateButton from "@/components/canvas/generate-button";
 
 /**
  * Rebuild EntityState from saved data
@@ -76,6 +78,8 @@ function rebuildShapesState(data: any) {
 
 export default function CanvasPage() {
   const searchParams = useSearchParams();
+  const params = useParams();
+  const session = params.session as string;
   const projectId = searchParams.get("project");
   const dispatch = useAppDispatch();
   const loadedRef = useRef<string | null>(null);
@@ -175,5 +179,10 @@ export default function CanvasPage() {
     );
   }
 
-  return <InfiniteCanvas />;
+  return (
+    <>
+      <InfiniteCanvas />
+      <GenerateButton session={session} projectId={projectId} />
+    </>
+  );
 }

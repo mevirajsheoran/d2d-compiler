@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/content-inferrer.ts
+// src/lib/design-engine-pipeline/content-inferrer.ts
 
 /* ══════════════════════════════════════════════════════════════════════════════
    CONTENT INFERRER
@@ -461,7 +461,7 @@ function inferNavContent(
 ): InferredContent {
   const result: InferredContent = {};
 
-    if (slotName === "logo") {
+  if (slotName === "logo") {
     // Nav brand name
     if (isBlankText(node.text)) {
       result.text = content.navBrand;

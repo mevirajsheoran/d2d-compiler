@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Download, FileText, Braces, Check } from "lucide-react";
 import { toast } from "sonner";
-import { buildPreviewHtml } from "@/lib/ai-pipeline/preview-builder";
+import { buildPreviewHtml } from "@/lib/design-engine-pipeline/preview-builder";
 
 interface ExportOptionsProps {
   code: string;

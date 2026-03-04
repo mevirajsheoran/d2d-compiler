@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/preview-builder.tsx
+// src/lib/design-engine-pipeline/preview-builder.tsx
 
 /* ══════════════════════════════════════════════════════════════════════════════
    PREVIEW HTML BUILDER
@@ -24,9 +24,9 @@ export function buildPreviewHtml(code: string): string {
   const fontMatch = htmlContent.match(/\/\*\s*Fonts?:\s*([^*]+)\*\//);
   const fontFamilies = fontMatch
     ? fontMatch[1]
-        .split(",")
-        .map((f: string) => f.trim())
-        .filter(Boolean)
+      .split(",")
+      .map((f: string) => f.trim())
+      .filter(Boolean)
     : [];
 
   const defaultFonts = ["Inter"];

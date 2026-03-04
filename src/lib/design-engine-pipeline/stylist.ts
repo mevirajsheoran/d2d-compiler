@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/stylist.ts
+// src/lib/design-engine-pipeline/stylist.ts
 
 /* ══════════════════════════════════════════════════════════════════════════════
    STYLIST — SIMPLIFIED

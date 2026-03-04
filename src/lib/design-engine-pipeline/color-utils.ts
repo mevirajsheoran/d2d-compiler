@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/color-utils.ts
+// src/lib/design-engine-pipeline/color-utils.ts
 
 /* ══════════════════════════════════════════════════════════
    COLOR UTILITIES
@@ -21,9 +21,9 @@ export function hexToRGB(hex: string): [number, number, number] {
   const full =
     clean.length === 3
       ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
+        .split("")
+        .map((c) => c + c)
+        .join("")
       : clean;
 
   const r = parseInt(full.substring(0, 2), 16);

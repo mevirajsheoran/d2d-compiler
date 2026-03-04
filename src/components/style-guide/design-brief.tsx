@@ -15,7 +15,7 @@ import {
 import {
   getSuggestions,
   type Suggestions,
-} from "@/lib/ai-pipeline/industry-content";
+} from "@/lib/design-engine-pipeline/industry-content";
 import type { DesignBrief } from "@/types/style-guide";
 
 /* ══════════════════════════════════════════════════════════════════════════════

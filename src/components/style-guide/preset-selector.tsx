@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Check, Sparkles } from "lucide-react";
-import { getPresetList } from "@/lib/ai-pipeline/design-identity";
+import { getPresetList } from "@/lib/design-engine-pipeline/design-identity";
 
 /* ══════════════════════════════════════════════════════════════════════════════
    PRESET PREVIEW DATA

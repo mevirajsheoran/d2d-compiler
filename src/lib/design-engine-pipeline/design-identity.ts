@@ -1,4 +1,4 @@
-// src/lib/ai-pipeline/design-identity.ts
+// src/lib/design-engine-pipeline/design-identity.ts
 
 /* ══════════════════════════════════════════════════════════════════════════════
    DESIGN IDENTITY ENGINE
@@ -2499,7 +2499,7 @@ export function detectPresetFromStyleGuide(
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
       const saturation = max === 0 ? 0 : (max - min) / max;
-      
+
       if (saturation > 0.7 && (r > g || r > b)) {
         return "bold-creative";
       }

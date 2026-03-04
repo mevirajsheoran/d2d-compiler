@@ -27,7 +27,7 @@ import {
   generateWithPreset,
   getAllPresets,
   type Variation,
-} from "@/lib/ai-pipeline/variation-generator";
+} from "@/lib/design-engine-pipeline/variation-generator";
 import type { Shape, FrameShape } from "@/redux/slice/shapes";
 import type { StyleGuide } from "@/types/style-guide";
 

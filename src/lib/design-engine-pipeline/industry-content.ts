@@ -639,3 +639,451 @@ export function getAvailablePageTypes(): string[] {
     "pricing",
   ];
 }
+
+
+// ═══════════════════════════════════════════════════════════
+// v5.0 — RECIPE CONTENT PER INDUSTRY
+// ═══════════════════════════════════════════════════════════
+
+import type { RecipeContent } from "./types";
+
+const RECIPE_CONTENT: Record<string, RecipeContent> = {
+  tech: {
+    statsItems: [
+      { value: "10K+", label: "Developers" },
+      { value: "99.9%", label: "Uptime" },
+      { value: "50ms", label: "Avg Response" },
+      { value: "150+", label: "Countries" },
+    ],
+    testimonialQuote:
+      "This platform cut our development time in half. The developer experience is unmatched.",
+    testimonialAuthor: "Alex Rivera",
+    testimonialRole: "Engineering Lead",
+    testimonialCompany: "TechCorp",
+    trustBadges: ["SOC 2 Certified", "GDPR Compliant", "99.99% SLA", "ISO 27001"],
+    logoCloudNames: ["Vercel", "Stripe", "Linear", "Notion", "Figma"],
+    logoCloudLabel: "Trusted by developers at",
+    newsletterHeading: "Stay in the loop",
+    newsletterSubtext: "Get product updates and engineering tips delivered weekly.",
+    newsletterPlaceholder: "you@company.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "Everything you need to ship faster",
+    featuresSectionSubtext:
+      "Powerful features designed for modern development teams.",
+    ctaHeading: "Ready to get started?",
+    ctaSubtext:
+      "Join thousands of developers who are already building faster.",
+    footerLinkGroups: [
+      ["Product", "Features", "Pricing", "Changelog", "Docs"],
+      ["Company", "About", "Blog", "Careers", "Press"],
+      ["Resources", "Community", "Contact", "Status", "Security"],
+    ],
+    socialLinks: ["GitHub", "Twitter", "Discord", "LinkedIn"],
+  },
+
+  medical: {
+    statsItems: [
+      { value: "50K+", label: "Patients Served" },
+      { value: "200+", label: "Specialists" },
+      { value: "98%", label: "Satisfaction Rate" },
+      { value: "24/7", label: "Available" },
+    ],
+    testimonialQuote:
+      "The care I received was exceptional. The team went above and beyond at every step.",
+    testimonialAuthor: "Sarah Mitchell",
+    testimonialRole: "Patient",
+    testimonialCompany: "",
+    trustBadges: [
+      "HIPAA Compliant",
+      "Board Certified",
+      "JCI Accredited",
+      "Telehealth Ready",
+    ],
+    logoCloudNames: [
+      "Mayo Clinic",
+      "Johns Hopkins",
+      "Cleveland Clinic",
+      "Kaiser",
+      "Mount Sinai",
+    ],
+    logoCloudLabel: "Trusted by leading institutions",
+    newsletterHeading: "Health tips delivered to you",
+    newsletterSubtext:
+      "Evidence-based wellness insights from our medical team.",
+    newsletterPlaceholder: "your@email.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "Comprehensive care you can trust",
+    featuresSectionSubtext:
+      "Advanced medical services backed by decades of expertise.",
+    ctaHeading: "Your health journey starts here",
+    ctaSubtext: "Schedule a consultation with our specialists today.",
+    footerLinkGroups: [
+      ["Services", "Primary Care", "Specialists", "Telehealth", "Lab Results"],
+      ["Patients", "Book Appointment", "Patient Portal", "Insurance", "FAQ"],
+      ["About", "Our Team", "Careers", "Research", "Contact"],
+    ],
+    socialLinks: ["Facebook", "Instagram", "LinkedIn", "YouTube"],
+  },
+
+  restaurant: {
+    statsItems: [
+      { value: "15+", label: "Years of Excellence" },
+      { value: "200+", label: "Menu Items" },
+      { value: "50K+", label: "Happy Guests" },
+      { value: "4.9★", label: "Average Rating" },
+    ],
+    testimonialQuote:
+      "An unforgettable dining experience. Every dish tells a story of passion and craftsmanship.",
+    testimonialAuthor: "James Chen",
+    testimonialRole: "Food Critic",
+    testimonialCompany: "Gourmet Magazine",
+    trustBadges: [
+      "Michelin Guide",
+      "James Beard Nominee",
+      "OpenTable Choice",
+      "Zagat Rated",
+    ],
+    logoCloudNames: [
+      "Michelin Guide",
+      "Zagat",
+      "OpenTable",
+      "Yelp Elite",
+      "TripAdvisor",
+    ],
+    logoCloudLabel: "Featured in",
+    newsletterHeading: "Get exclusive offers",
+    newsletterSubtext:
+      "Be the first to know about seasonal menus and special events.",
+    newsletterPlaceholder: "your@email.com",
+    newsletterButton: "Join",
+    featuresSectionHeading: "A culinary experience like no other",
+    featuresSectionSubtext:
+      "Every detail crafted with care, from farm to table.",
+    ctaHeading: "Reserve your table tonight",
+    ctaSubtext: "Experience dining that delights every sense.",
+    footerLinkGroups: [
+      ["Dine", "Menu", "Reservations", "Private Events", "Catering"],
+      ["Discover", "Our Story", "The Chef", "Gallery", "Press"],
+      ["Visit", "Hours", "Location", "Parking", "Contact"],
+    ],
+    socialLinks: ["Instagram", "Facebook", "TripAdvisor", "Yelp"],
+  },
+
+  education: {
+    statsItems: [
+      { value: "500+", label: "Courses" },
+      { value: "50K+", label: "Students" },
+      { value: "95%", label: "Completion Rate" },
+      { value: "4.8★", label: "Avg Rating" },
+    ],
+    testimonialQuote:
+      "The courses completely transformed my career. The instructors are world-class.",
+    testimonialAuthor: "Maria Santos",
+    testimonialRole: "Graduate",
+    testimonialCompany: "Class of 2024",
+    trustBadges: [
+      "Accredited",
+      "Industry Recognized",
+      "Transferable Credits",
+      "Career Support",
+    ],
+    logoCloudNames: [
+      "Harvard",
+      "Stanford",
+      "MIT",
+      "Coursera",
+      "edX",
+    ],
+    logoCloudLabel: "Partnered with",
+    newsletterHeading: "Never stop learning",
+    newsletterSubtext: "New courses and learning resources, delivered weekly.",
+    newsletterPlaceholder: "student@email.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "Learn without limits",
+    featuresSectionSubtext:
+      "Flexible, world-class education designed for your schedule.",
+    ctaHeading: "Start your learning journey",
+    ctaSubtext: "Enroll today and transform your future.",
+    footerLinkGroups: [
+      ["Learn", "Courses", "Programs", "Certifications", "Free Resources"],
+      ["Community", "Student Stories", "Forums", "Events", "Blog"],
+      ["Support", "Help Center", "Contact", "Accessibility", "FAQ"],
+    ],
+    socialLinks: ["LinkedIn", "YouTube", "Twitter", "Instagram"],
+  },
+
+  ecommerce: {
+    statsItems: [
+      { value: "10K+", label: "Products" },
+      { value: "Free", label: "Shipping Over $50" },
+      { value: "24h", label: "Fast Delivery" },
+      { value: "30 Day", label: "Easy Returns" },
+    ],
+    testimonialQuote:
+      "Amazing quality and fast shipping. This is my go-to store for everything.",
+    testimonialAuthor: "Emily Johnson",
+    testimonialRole: "Verified Buyer",
+    testimonialCompany: "",
+    trustBadges: [
+      "Free Shipping",
+      "Secure Checkout",
+      "Money-Back Guarantee",
+      "24/7 Support",
+    ],
+    logoCloudNames: [
+      "Visa",
+      "Mastercard",
+      "PayPal",
+      "Apple Pay",
+      "Shop Pay",
+    ],
+    logoCloudLabel: "Secure payment with",
+    newsletterHeading: "Get 15% off your first order",
+    newsletterSubtext: "Sign up for exclusive deals and new arrivals.",
+    newsletterPlaceholder: "your@email.com",
+    newsletterButton: "Get My Discount",
+    featuresSectionHeading: "Why shop with us",
+    featuresSectionSubtext: "Quality products, unbeatable service.",
+    ctaHeading: "Start shopping today",
+    ctaSubtext: "Discover thousands of products curated just for you.",
+    footerLinkGroups: [
+      ["Shop", "New Arrivals", "Best Sellers", "Sale", "Gift Cards"],
+      ["Help", "Track Order", "Shipping", "Returns", "Size Guide"],
+      ["Company", "About Us", "Sustainability", "Careers", "Press"],
+    ],
+    socialLinks: ["Instagram", "Facebook", "Pinterest", "TikTok"],
+  },
+
+  finance: {
+    statsItems: [
+      { value: "$2B+", label: "Assets Managed" },
+      { value: "500K+", label: "Active Accounts" },
+      { value: "0.01%", label: "Fraud Rate" },
+      { value: "99.99%", label: "Uptime" },
+    ],
+    testimonialQuote:
+      "Switching was the best financial decision I've made. Transparent, reliable, and easy to use.",
+    testimonialAuthor: "David Park",
+    testimonialRole: "Business Owner",
+    testimonialCompany: "Park Industries",
+    trustBadges: [
+      "Bank-Level Security",
+      "FDIC Insured",
+      "SOC 2 Certified",
+      "256-bit Encryption",
+    ],
+    logoCloudNames: [
+      "Forbes",
+      "Bloomberg",
+      "Wall Street Journal",
+      "TechCrunch",
+      "CNBC",
+    ],
+    logoCloudLabel: "As seen in",
+    newsletterHeading: "Financial insights, delivered",
+    newsletterSubtext:
+      "Market analysis and tips from our experts, every week.",
+    newsletterPlaceholder: "investor@email.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "Banking built for the modern world",
+    featuresSectionSubtext:
+      "Powerful tools to manage, grow, and protect your money.",
+    ctaHeading: "Take control of your finances",
+    ctaSubtext: "Open your account in minutes. No hidden fees.",
+    footerLinkGroups: [
+      ["Products", "Personal", "Business", "Investing", "Insurance"],
+      ["Resources", "Blog", "Calculators", "Security", "API"],
+      ["Company", "About", "Careers", "Press", "Contact"],
+    ],
+    socialLinks: ["LinkedIn", "Twitter", "Facebook", "YouTube"],
+  },
+
+  agency: {
+    statsItems: [
+      { value: "200+", label: "Projects Delivered" },
+      { value: "50+", label: "Happy Clients" },
+      { value: "15+", label: "Awards Won" },
+      { value: "8+", label: "Years" },
+    ],
+    testimonialQuote:
+      "They didn't just build a website — they built a brand experience that drives real results.",
+    testimonialAuthor: "Lisa Wong",
+    testimonialRole: "Marketing Director",
+    testimonialCompany: "Horizon Brands",
+    trustBadges: [
+      "Awwwards Winner",
+      "Google Partner",
+      "Clutch Top Agency",
+      "HubSpot Certified",
+    ],
+    logoCloudNames: [
+      "Nike",
+      "Spotify",
+      "Airbnb",
+      "Shopify",
+      "Slack",
+    ],
+    logoCloudLabel: "Brands we've worked with",
+    newsletterHeading: "Design thinking, delivered",
+    newsletterSubtext:
+      "Creative insights and industry trends, straight to your inbox.",
+    newsletterPlaceholder: "hello@company.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "What we do best",
+    featuresSectionSubtext:
+      "End-to-end digital solutions that move the needle.",
+    ctaHeading: "Let's build something great",
+    ctaSubtext: "Tell us about your project and we'll get back to you within 24 hours.",
+    footerLinkGroups: [
+      ["Services", "Web Design", "Branding", "Development", "Strategy"],
+      ["Work", "Case Studies", "Portfolio", "Industries", "Process"],
+      ["Studio", "About", "Team", "Careers", "Blog"],
+    ],
+    socialLinks: ["Dribbble", "Instagram", "Behance", "LinkedIn"],
+  },
+
+  fitness: {
+    statsItems: [
+      { value: "100+", label: "Classes Weekly" },
+      { value: "50+", label: "Expert Trainers" },
+      { value: "10K+", label: "Active Members" },
+      { value: "4.9★", label: "Rated" },
+    ],
+    testimonialQuote:
+      "I've never felt stronger or more confident. The trainers here truly care about your goals.",
+    testimonialAuthor: "Mike Thompson",
+    testimonialRole: "Member since 2022",
+    testimonialCompany: "",
+    trustBadges: [
+      "Certified Trainers",
+      "24/7 Access",
+      "Free Trial",
+      "No Lock-in Contracts",
+    ],
+    logoCloudNames: [
+      "Nike Training",
+      "Peloton",
+      "Lululemon",
+      "Under Armour",
+      "Fitbit",
+    ],
+    logoCloudLabel: "Partnered with",
+    newsletterHeading: "Get fit tips weekly",
+    newsletterSubtext:
+      "Workout plans, nutrition advice, and motivation delivered free.",
+    newsletterPlaceholder: "your@email.com",
+    newsletterButton: "Join Free",
+    featuresSectionHeading: "Transform your body and mind",
+    featuresSectionSubtext:
+      "World-class facilities and programs for every fitness level.",
+    ctaHeading: "Start your transformation today",
+    ctaSubtext: "Your first week is on us. No commitment required.",
+    footerLinkGroups: [
+      ["Programs", "Group Classes", "Personal Training", "Nutrition", "Online"],
+      ["Membership", "Plans", "Corporate", "Student", "Gift Cards"],
+      ["Info", "Locations", "Schedule", "Blog", "Contact"],
+    ],
+    socialLinks: ["Instagram", "YouTube", "TikTok", "Facebook"],
+  },
+
+  realestate: {
+    statsItems: [
+      { value: "5K+", label: "Properties Listed" },
+      { value: "98%", label: "Client Satisfaction" },
+      { value: "$500M+", label: "Sales Volume" },
+      { value: "15+", label: "Years Experience" },
+    ],
+    testimonialQuote:
+      "They found us our dream home in two weeks. Professional, knowledgeable, and genuinely caring.",
+    testimonialAuthor: "The Martinez Family",
+    testimonialRole: "Homeowners",
+    testimonialCompany: "",
+    trustBadges: [
+      "Licensed Agents",
+      "Top 1% Nationwide",
+      "Award Winning",
+      "Free Consultation",
+    ],
+    logoCloudNames: [
+      "Zillow Premier",
+      "Realtor.com",
+      "RE/MAX",
+      "Compass",
+      "Sotheby's",
+    ],
+    logoCloudLabel: "Featured on",
+    newsletterHeading: "Market updates you can trust",
+    newsletterSubtext:
+      "Local listings, price trends, and buying tips delivered weekly.",
+    newsletterPlaceholder: "your@email.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "Your trusted real estate partner",
+    featuresSectionSubtext:
+      "Expert guidance for every step of your property journey.",
+    ctaHeading: "Find your perfect property",
+    ctaSubtext: "Browse thousands of listings or talk to an agent today.",
+    footerLinkGroups: [
+      ["Buy", "Homes for Sale", "New Construction", "Open Houses", "Map Search"],
+      ["Sell", "Home Valuation", "Selling Guide", "Market Report", "Agents"],
+      ["Company", "About", "Testimonials", "Careers", "Contact"],
+    ],
+    socialLinks: ["Instagram", "Facebook", "LinkedIn", "YouTube"],
+  },
+
+  travel: {
+    statsItems: [
+      { value: "100+", label: "Destinations" },
+      { value: "50K+", label: "Happy Travelers" },
+      { value: "24/7", label: "Support" },
+      { value: "Best", label: "Price Guarantee" },
+    ],
+    testimonialQuote:
+      "The trip of a lifetime, flawlessly organized. Every detail was perfect from start to finish.",
+    testimonialAuthor: "Sophie Laurent",
+    testimonialRole: "Traveler",
+    testimonialCompany: "",
+    trustBadges: [
+      "IATA Accredited",
+      "Best Price Guarantee",
+      "Free Cancellation",
+      "24/7 Support",
+    ],
+    logoCloudNames: [
+      "TripAdvisor",
+      "Lonely Planet",
+      "National Geographic",
+      "Condé Nast",
+      "Travel + Leisure",
+    ],
+    logoCloudLabel: "Recommended by",
+    newsletterHeading: "Wanderlust, delivered",
+    newsletterSubtext:
+      "Destination guides, travel deals, and insider tips every week.",
+    newsletterPlaceholder: "explorer@email.com",
+    newsletterButton: "Subscribe",
+    featuresSectionHeading: "Travel experiences you'll never forget",
+    featuresSectionSubtext:
+      "Curated itineraries and local expertise for the modern traveler.",
+    ctaHeading: "Your next adventure awaits",
+    ctaSubtext: "Browse destinations and book your dream trip today.",
+    footerLinkGroups: [
+      ["Explore", "Destinations", "Tours", "Cruises", "Adventure"],
+      ["Plan", "Travel Guides", "Visa Info", "Insurance", "Packing Lists"],
+      ["Company", "About", "Careers", "Partners", "Contact"],
+    ],
+    socialLinks: ["Instagram", "YouTube", "Pinterest", "Facebook"],
+  },
+};
+
+/** Default recipe content for unknown industries */
+const DEFAULT_RECIPE_CONTENT: RecipeContent = RECIPE_CONTENT.tech;
+
+/**
+ * Get recipe-specific content for an industry.
+ * Used by recipe template renderers in component-library.ts
+ */
+export function getRecipeContent(industry: string): RecipeContent {
+  const normalized = (industry || "tech").toLowerCase().replace(/[^a-z]/g, "");
+  return RECIPE_CONTENT[normalized] || DEFAULT_RECIPE_CONTENT;
+}
+
