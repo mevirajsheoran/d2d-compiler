@@ -214,7 +214,7 @@ export default function GenerationPopup({
           // 5. Complete — full preview
           const t4 = setTimeout(() => {
             setPhase("complete");
-          }, 1000);
+          }, 2500);
 
           timers.push(t4);
         }, 2500);
@@ -726,7 +726,7 @@ function TransitioningView({
         className="absolute inset-0 pointer-events-none"
         style={{
           background: "linear-gradient(90deg, transparent 0%, rgba(10,10,10,0.97) 20%, rgba(10,10,10,0.97) 80%, transparent 100%)",
-          animation: "d2dWipeOverlay 1s cubic-bezier(0.76, 0, 0.24, 1) forwards",
+          animation: "d2dWipeOverlay 2.5s cubic-bezier(0.76, 0, 0.24, 1) forwards",
         }}
       />
 
@@ -736,7 +736,7 @@ function TransitioningView({
       {/* Center text */}
       <div
         className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-        style={{ animation: "d2dTransitionTextIn 1s ease-out forwards" }}
+        style={{ animation: "d2dTransitionTextIn 2.5s ease-out forwards" }}
       >
         {/* Horizontal decorative lines flanking text */}
         <div className="flex items-center gap-4">
@@ -1061,7 +1061,7 @@ function WipeLine() {
       style={{
         width: "3px",
         left: "0%",
-        animation: "d2dWipeLine 1s cubic-bezier(0.76, 0, 0.24, 1) forwards",
+        animation: "d2dWipeLine 2.5s cubic-bezier(0.76, 0, 0.24, 1) forwards",
         background:
           "linear-gradient(180deg, transparent 0%, rgba(59,130,246,0.8) 20%, rgba(96,165,250,1) 50%, rgba(59,130,246,0.8) 80%, transparent 100%)",
         boxShadow:
