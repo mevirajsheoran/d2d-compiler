@@ -1,7 +1,7 @@
 # D2D — Deterministic Design Compiler
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-39%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-45%20passing-brightgreen)](tests/)
 
 **Turn a rough sketch into production-ready React code in under a second — zero AI cost, zero guesswork.**
 
@@ -114,7 +114,13 @@ Open [http://localhost:3000](http://localhost:3000).
 npm test
 ```
 
-The test suite covers the deterministic pipeline: extractor, classifier, architect, spatial graph, grid detection, determinism verification, and integration scenarios.
+**45 tests** across 11 test files covering the full deterministic pipeline:
+
+| Suite                | Tests | Covers                                                                                      |
+| -------------------- | ----- | ------------------------------------------------------------------------------------------- |
+| `tests/pipeline/`    | 30    | Extractor, classifier, architect, spatial graph, grid detector, page recipes, recipe merger |
+| `tests/integration/` | 11    | End-to-end pipeline: brief → code generation, brand permeation, responsive output           |
+| `tests/determinism/` | 4     | Identical output verification across repeated runs                                          |
 
 ---
 
