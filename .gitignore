@@ -40,8 +40,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-s2c-boiler-plate/
+# convex generated
+convex/_generated
 
-x.docs
-combined.docs
-compare.docs
+# editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# os
+Thumbs.db
