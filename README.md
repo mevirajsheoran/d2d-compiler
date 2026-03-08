@@ -46,7 +46,7 @@ React + Tailwind CSS Component
 (responsive, interactive, production-ready)
 ```
 
-See [docs/architecture.md](docs/architecture.md) for the full technical breakdown.
+
 
 ---
 
