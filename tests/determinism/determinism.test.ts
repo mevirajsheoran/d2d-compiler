@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { generateFromFrame } from "../index";
+import { generateFromFrame } from "@/lib/design-engine-pipeline/index";
 import {
   LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES,
   EMPTY_FRAME, EMPTY_SHAPES,
-} from "@/lib/design-engine-pipeline/__tests__/fixtures/shapes";
-import { TECH_LANDING_GUIDE, RESTAURANT_LANDING_GUIDE } from "./fixtures/style-guides";
+} from "../fixtures/shapes";
+import { TECH_LANDING_GUIDE, RESTAURANT_LANDING_GUIDE } from "../fixtures/style-guides";
 
 describe("Determinism: Same Input → Same Output", () => {
   it("produces identical output for landing page with wireframe", async () => {

@@ -1,0 +1,1505 @@
+# D2D — Complete Product Documentation v5.0
+
+_Draw to Design: From Wireframe Sketch to Production-Ready React Code_
+
+## Table of Contents
+
+What is D2D
+Product Vision & Value Proposition
+Technology Stack
+System Architecture
+User Journey & Workflow
+Authentication & User Management
+Project System
+Canvas Engine
+Style Guide System
+Design Engine Pipeline (Overview)
+Generation & Preview System
+Variation System
+Backend & Data Layer (Convex)
+State Management (Redux)
+Billing & Subscription
+UI Component Library
+Routing & Page Architecture
+Background Jobs (Inngest)
+Utility Modules
+Test Suite
+Configuration & DevOps
+Complete File Reference
+
+## 1. What is D2D
+
+D2D (Draw to Design) is a browser-based application that transforms hand-drawn wireframe sketches into production-ready React + Tailwind CSS code. Users draw UI shapes on a canvas — rectangles, buttons, inputs, headings, images — and D2D's deterministic pipeline compiles those shapes into complete, responsive, styled React components.
+
+The core promise:
+
+Draw → rough wireframe shapes inside a frame
+Configure → choose colors, fonts, industry, page type
+Generate → get production-quality React + Tailwind code instantly
+Key differentiators:
+
+Zero AI, Zero Cost: The entire pipeline is deterministic — pure geometry analysis + template composition. No LLM calls, no API costs, no latency.
+Deterministic: Same input always produces exactly the same output. No randomness, no variability between runs.
+Browser-native: Everything runs client-side in < 300ms. No server round-trips for code generation.
+Professional output: 25-40 Tailwind classes per element, hover/focus/active states, responsive breakpoints, SVG icons, gradient backgrounds — comparable to v0.dev output quality.
+Recipe system (v5.0): Even without drawing anything, specify a page type + industry and get a complete professional page skeleton.
+
+## 2. Product Vision & Value Proposition
+
+### Who It's For
+
+User Need How D2D Helps
+Designers Quickly prototype ideas in code Draw rough wireframes, get real React components
+Developers Skip boilerplate UI setup Get a complete starting codebase with proper structure
+Founders/PMs Communicate ideas visually Draw what you want, get a working prototype
+Students Learn UI development patterns See how wireframes translate to code
+
+### The Problem
+
+The gap between "what I imagine" and "working code" is vast:
+
+Design tools (Figma) produce images, not code
+AI code generators (ChatGPT) are non-deterministic, expensive, slow
+Component libraries (shadcn) require manual assembly
+Code-from-image tools need screenshots, not live drawings
+
+### The Solution
+
+D2D sits at the intersection: a drawing tool that compiles to code. Like a compiler for UI wireframes:
+
+```
+Figma      → images (not code)
+ChatGPT    → code (non-deterministic, slow, costly)
+shadcn/ui  → components (manual assembly)
+D2D        → code (deterministic, instant, free, from drawings)
+```
+
+## 3. Technology Stack
+
+### Frontend
+
+Technology Purpose Why Chosen
+Next.js 14+ React framework, file-based routing, server components App Router with layouts, protected routes, API routes
+React 18 UI library Component model, hooks, concurrent features
+TypeScript Type safety End-to-end type contracts across the pipeline
+Tailwind CSS Styling Utility-first, same technology used in generated output
+Redux Toolkit Client state management Canvas shapes, viewport, profile — needs global mutable state
+RTK Query API state management Project CRUD with caching and invalidation
+
+### Backend
+
+Technology Purpose Why Chosen
+Convex Real-time database + serverless functions Schema-defined tables, real-time subscriptions, zero-config
+Convex Auth Authentication Integrated with Convex, supports OAuth + email
+Inngest Background job processing Event-driven functions for async work
+
+### Payments
+
+Technology Purpose
+Razorpay Indian payment gateway for subscriptions
+
+### Testing
+
+Technology Purpose
+Vitest Unit + integration testing for the pipeline
+
+### UI Components
+
+Technology Purpose
+shadcn/ui Base UI component library (50+ components in src/components/ui/)
+Radix UI Accessible primitives (used by shadcn)
+
+## 4. System Architecture
+
+High-Level Architecture
+`
+
+┌─────────────────────────────────────────────────────────────────┐
+│ BROWSER (Client) │
+│ │
+│ ┌───────────────┐ ┌──────────────┐ ┌──────────────────────┐ │
+│ │ Canvas Engine │ │ Style Guide │ │ Design Engine │ │
+│ │ (Drawing) │ │ (Config) │ │ Pipeline (Compile) │ │
+│ │ │ │ │ │ │ │
+│ │ SVG shapes │ │ Colors │ │ 19 TypeScript files │ │
+│ │ Pan/zoom │ │ Fonts │ │ 6 pipeline phases │ │
+│ │ Selection │ │ Brief │ │ < 300ms execution │ │
+│ │ History │ │ Preset │ │ Zero API calls │ │
+│ └───────┬───────┘ └──────┬───────┘ └──────────┬─────────────┘ │
+│ │ │ │ │
+│ ▼ ▼ ▼ │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Redux Store │ │
+│ │ shapes[], viewport, profile, projects │ │
+│ └──────────────────────┬──────────────────────────────────────┘ │
+│ │ │
+│ ┌──────────────────────▼──────────────────────────────────────┐ │
+│ │ Generation & Preview │ │
+│ │ Frame selector → Pipeline → Preview iframe → Export │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│ │
+└──────────────────────────┬───────────────────────────────────────┘
+│ Convex client (WebSocket)
+▼
+┌──────────────────────────────────────────────────────────────────┐
+│ CONVEX BACKEND (Cloud) │
+│ │
+│ ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌───────────────┐ │
+│ │ Auth │ │ Projects │ │ Users │ │ Moodboard │ │
+│ │ (OAuth) │ │ (CRUD) │ │ (Sync) │ │ (Assets) │ │
+│ └──────────┘ └───────────┘ └──────────┘ └───────────────┘ │
+│ │
+│ Schema: users, projects, subscriptions, moodboard_assets │
+└──────────────────────────────────────────────────────────────────┘
+│
+▼
+┌──────────────────────────────────────────────────────────────────┐
+│ EXTERNAL SERVICES │
+│ Razorpay (Payments) │ Inngest (Jobs) │ Google (OAuth) │
+└──────────────────────────────────────────────────────────────────┘
+
+### Key Architectural Decisions
+
+Client-side pipeline: The entire code generation runs in the browser. No server involved. This eliminates latency, cost, and privacy concerns.
+
+Convex for real-time state: Projects, user data, and moodboard assets are synced in real-time via Convex WebSocket connections. No REST polling.
+
+Redux for canvas state: Canvas shapes need frequent, synchronous updates (mouse movements, drawing operations). Redux provides predictable state mutations with undo/redo capability.
+
+Separation of drawing and generation: The canvas engine and design engine pipeline are completely decoupled. The canvas produces shapes; the pipeline consumes them independently.
+
+## 5. User Journey & Workflow
+
+### Complete User Flow
+
+`
+
+## 1. LAND (/page.tsx)
+
+└── Landing page with product info, animations
+
+## 2. SIGN UP (/auth/sign-up)
+
+└── Google OAuth or email
+└── Profile sync to Convex
+
+## 3. DASHBOARD (/dashboard)
+
+└── View all projects
+└── Create new project
+└── Delete projects
+
+## 4. PROJECT WORKSPACE (/dashboard/[session])
+
+├── Canvas (/canvas)
+│ ├── Select tools (shapes, text, images, etc.)
+│ ├── Draw shapes on frames
+│ ├── Pan, zoom, select, move, resize
+│ ├── Undo/redo
+│ └── Auto-save to Convex
+│
+├── Style Guide (/style-guide)
+│ ├── Pick colors (primary, secondary, accent)
+│ ├── Choose fonts (heading, body)
+│ ├── Select design preset (startup-modern, minimal-elegant, etc.)
+│ ├── Write design brief (brand name, industry, page type, tone)
+│ └── Upload moodboard images
+│
+└── Generate (/generate)
+├── Select target frame
+├── Run pipeline (< 300ms)
+├── Preview in iframe (responsive toggle: desktop/tablet/mobile)
+├── View code (syntax highlighted)
+├── Switch between 3 variations (different presets)
+├── Export: copy code, download HTML, download component
+└── Generation popup with all controls
+
+## 5. BILLING (/billing)
+
+└── View subscription status
+└── Upgrade/downgrade via Razorpay
+
+### The 3-Step Mental Model
+
+From the user's perspective, D2D is three steps:
+
+`
+
+STEP 1: DRAW
+Open canvas → pick a tool → draw shapes inside a frame
+(Rectangles become containers, small rects become buttons,
+wide rects become inputs, text shapes become headings)
+
+STEP 2: STYLE
+Open style guide → pick colors, fonts, preset, write brief
+(Tell D2D about your brand, industry, and what kind of page)
+
+STEP 3: GENERATE
+Click "Generate" → get production React + Tailwind code
+(Preview it, switch styles, export it)
+
+## 6. Authentication & User Management
+
+### Auth Architecture
+
+`
+
+Files:
+convex/auth.ts — Convex Auth configuration
+convex/auth.config.ts — Provider configuration (Google OAuth)
+convex/user.ts — User CRUD mutations/queries
+src/components/auth/profile-sync.tsx — Client-side profile syncing
+src/components/oauth/google.tsx — Google sign-in button
+src/hooks/use-auth.ts — Auth hook for components
+src/middleware.ts — Route protection middleware
+
+### Flow
+
+`
+
+## 1. User visits /auth/sign-in or /auth/sign-up
+
+## 2. Clicks "Continue with Google" (GoogleOAuth component)
+
+## 3. Convex Auth handles OAuth flow
+
+## 4. On success: Convex creates/updates user record
+
+## 5. ProfileSync component fires on auth state change:
+
+- Reads Convex Auth user
+- Upserts to Convex `users` table
+- Syncs to Redux profile slice
+
+## 6. Middleware redirects:
+
+- Unauthenticated → /auth/sign-in
+- Authenticated accessing /auth → /dashboard
+
+### User Data Model
+
+` ypescript
+
+// convex/schema.ts (users table)
+users: defineTable({
+clerkId: v.string(), // Auth provider ID
+email: v.string(),
+name: v.string(),
+imageUrl: v.optional(v.string()),
+plan: v.optional(v.string()), // "free" | "pro" | "enterprise"
+createdAt: v.number(),
+})
+
+## 7. Project System
+
+### Architecture
+
+`
+
+Files:
+convex/projects.ts — Server-side CRUD (mutations + queries)
+src/redux/api/project/index.ts — RTK Query API layer
+src/redux/slice/projects/index.ts — Redux slice for project state
+src/components/projects/list.tsx — Project list UI
+src/components/projects/provider.tsx — Project context provider
+src/hooks/use-project.ts — Project hook for components
+src/components/buttons/project/index.tsx — Create project button
+src/app/api/project/route.ts — Next.js API route proxy
+
+### Project Data Model
+
+` ypescript
+
+// convex/schema.ts (projects table)
+projects: defineTable({
+userId: v.id("users"),
+name: v.string(),
+description: v.optional(v.string()),
+shapes: v.optional(v.string()), // JSON-serialized Shape[]
+styleGuide: v.optional(v.string()), // JSON-serialized StyleGuide
+thumbnail: v.optional(v.string()), // Base64 thumbnail
+createdAt: v.number(),
+updatedAt: v.number(),
+})
+
+### Project Lifecycle
+
+`
+
+CREATE:
+User clicks "New Project" → convex/projects.ts:create() → new project record
+→ Redirect to /dashboard/[session]/canvas
+
+LOAD:
+User opens project → convex/projects.ts:get() → load shapes + styleGuide
+→ Deserialize JSON → populate Redux shapes slice
+
+SAVE (Auto-save):
+Canvas changes → src/hooks/use-auto-save.ts debounces (2s) →
+Serializes shapes to JSON → convex/projects.ts:update()
+→ Auto-save indicator shows "Saving..." → "Saved"
+
+DELETE:
+User clicks delete → confirmation dialog →
+convex/projects.ts:remove() → redirect to /dashboard
+
+### Auto-Save System
+
+`
+
+File: src/hooks/use-auto-save.ts
+
+Behavior:
+
+- Watches Redux shapes slice for changes
+- Debounces by 2 seconds (prevents save on every mouse move)
+- Serializes Shape[] to JSON string
+- Calls Convex mutation to update project
+- Shows indicator: "Unsaved changes" → "Saving..." → "Saved ✓"
+- Handles errors gracefully (shows error state, retries)
+
+## 8. Canvas Engine
+
+### Architecture
+
+The canvas is a custom SVG-based drawing engine built from scratch:
+
+`
+
+Files:
+src/components/canvas/index.tsx — Main canvas component
+src/components/canvas/toolbar/ — Drawing toolbar
+├── index.tsx — Toolbar container
+├── tools.tsx — Tool selection buttons
+├── history.tsx — Undo/redo buttons
+└── zoom.tsx — Zoom controls
+src/components/canvas/shapes/ — 25+ shape renderers
+├── index.tsx — Shape dispatcher
+├── rectangle/ — Rectangle shape
+├── rounded-rectangle/ — Rounded rectangle
+├── circle/ — Circle
+├── ellipse/ — Ellipse
+├── triangle/ — Triangle
+├── star/ — Star
+├── polygon/ — Polygon
+├── line/ — Line
+├── arrow/ — Arrow
+├── connector/ — Connector
+├── text/ — Text shape
+├── frame/ — Frame (artboard)
+├── button-shape/ — UI Button
+├── input-field/ — UI Input field
+├── checkbox/ — UI Checkbox
+├── hamburger-menu/ — Navigation hamburger
+├── image-placeholder/ — Image placeholder
+├── video-placeholder/ — Video placeholder
+├── chart-placeholder/ — Chart placeholder
+├── divider/ — Horizontal/vertical divider
+├── device-frame/ — Device mockup frame
+├── sticky-note/ — Sticky note (annotation)
+├── speech-bubble/ — Speech bubble (annotation)
+├── stroke/ — Freehand drawing
+├── highlighter/ — Highlighter stroke
+├── selection.tsx — Selection rectangle/handles
+└── generic-preview.tsx — Fallback preview renderer
+src/components/canvas/text-sidebar.tsx — Text formatting sidebar
+src/components/canvas/generate-button.tsx — Generate trigger
+src/components/canvas/autosave-indicator.tsx — Save status
+src/hooks/use-canvas.ts — Canvas interaction hook
+src/redux/slice/shapes/index.ts — Shapes Redux slice
+src/redux/slice/viewport/index.ts — Viewport Redux slice
+
+### Shape System
+
+Every shape on the canvas is a TypeScript object stored in the Redux shapes slice:
+
+` ypescript
+
+// src/redux/slice/shapes/index.ts
+
+type Shape =
+| RectShape | RoundedRectShape | EllipseShape | CircleShape
+| TriangleShape | StarShape | PolygonShape
+| LineShape | ArrowShape | ConnectorShape
+| TextShape | FrameShape
+| ButtonShape | InputFieldShape | CheckboxShape | HamburgerMenuShape
+| ImagePlaceholderShape | VideoPlaceholderShape | ChartPlaceholderShape
+| DividerShape | DeviceFrameShape
+| StickyNoteShape | SpeechBubbleShape
+| FreeDrawShape | HighlighterShape
+| GeneratedUIShape;
+
+// Common shape properties
+interface BaseShape {
+id: string;
+type: string;
+isLocked: boolean;
+isVisible: boolean;
+opacity: number;
+zIndex: number;
+rotation: number;
+}
+
+### Shape Categories
+
+Category Shapes Pipeline Role
+Geometric rect, roundedRect, circle, ellipse, triangle, star, polygon Container, card, button, avatar, decorative
+Lines line, arrow, connector Divider, annotation (excluded)
+Text text Heading (H1-H4) or paragraph
+UI Components buttonShape, inputField, checkbox, hamburgerMenu Direct semantic mapping
+Media imagePlaceholder, videoPlaceholder, chartPlaceholder Image, video, chart placeholders
+Structure frame, divider, deviceFrame Artboard boundary, section separator, device mockup
+Annotations stickyNote, speechBubble, freedraw, highlighter Excluded from code generation
+Generated generatedui Output preview (excluded from input)
+
+### Canvas Interactions
+
+`
+
+DRAWING:
+
+## 1. User selects tool from toolbar
+
+2. Mouse down on canvas → create new shape at coordinates
+3. Mouse move → update shape dimensions
+4. Mouse up → finalize shape, add to Redux store
+
+SELECTION:
+
+1. Click on shape → select it (blue handles appear)
+2. Drag selection handles → resize shape
+3. Drag shape body → move shape
+4. Click empty area → deselect
+
+VIEWPORT:
+
+- Pan: middle mouse button or space + drag
+- Zoom: scroll wheel or toolbar buttons
+- Viewport state: { x, y, zoom } in Redux viewport slice
+
+HISTORY:
+
+- Undo: Ctrl+Z → revert last shapes mutation
+- Redo: Ctrl+Y → reapply reverted mutation
+- History stored in Redux middleware
+
+### Frame System
+
+Frames are special shapes that act as artboards — they define the boundary for code generation:
+
+` ypescript
+
+FrameShape {
+type: "frame"
+id: string
+x: number, y: number
+w: number, h: number
+name: string // "Desktop", "Mobile", etc.
+}
+The pipeline only processes shapes inside a frame. Users typically draw one frame per page design.
+
+## 9. Style Guide System
+
+### Architecture
+
+`
+
+Files:
+src/app/(protected)/dashboard/[session]/(workspace)/style-guide/
+├── layout.tsx — Style guide page layout
+└── page.tsx — Style guide page
+src/components/style-guide/
+├── colors.tsx — Color picker (primary, secondary, accent)
+├── typography.tsx — Font selector (heading, body)
+├── preset-selector.tsx — Design preset chooser
+├── design-brief.tsx — Brand brief form
+├── mood-board.tsx — Moodboard image upload
+└── image-card.tsx — Moodboard image card
+src/hooks/use-style-guide.ts — Style guide state hook
+src/hooks/use-project-style-guide.ts — Project-scoped style guide
+src/types/style-guide.ts — StyleGuide type definition
+
+### StyleGuide Type
+
+` ypescript
+
+// src/types/style-guide.ts
+
+interface StyleGuide {
+colors: {
+primary: ColorEntry[];
+secondary: ColorEntry[];
+accent: ColorEntry[];
+neutral: ColorEntry[];
+semantic: ColorEntry[];
+};
+typography: TypographyEntry[];
+brief?: DesignBrief;
+preset?: string; // PresetName
+theme?: string;
+description?: string;
+}
+
+interface DesignBrief {
+brandName?: string; // "Acme"
+tagline?: string; // "Ship faster"
+industry?: string; // "tech", "restaurant", "medical", etc.
+tone?: string; // "professional", "playful", "elegant", etc.
+pageType?: string; // "landing", "saas", "blog", "login", etc.
+description?: string; // Free-form description
+}
+
+interface ColorEntry {
+hexColor: string; // "#3b82f6"
+name?: string; // "Blue"
+}
+
+### Style Guide Components
+
+### Colors (colors.tsx)
+
+Three color categories: Primary, Secondary, Accent
+Each allows picking a hex color via color picker
+Colors flow into the pipeline's design-identity.ts → generatePalette() → 8 variants each
+
+### Typography (typography.tsx)
+
+Two font selectors: Heading font, Body font
+List of Google Fonts options
+Fonts flow into DesignIdentity → all heading/body CSS classes
+
+### Preset Selector (preset-selector.tsx)
+
+6 design presets displayed as visual cards
+Each shows name, description, and key visual characteristics
+Selection sets styleGuide.preset → directly maps to a preset builder in design-identity.ts
+
+### Design Brief (design-brief.tsx)
+
+Brand Name: Used in nav logos, footer copyright, CTA text
+Tagline: Prepended to hero subtexts
+Industry: 10 options (tech, medical, restaurant, education, ecommerce, finance, agency, fitness, realestate, travel) — drives content bank selection and recipe content
+Tone: 6 options (professional, playful, minimal, bold, elegant, futuristic) — combined with industry for smart suggestions (preset + color + font)
+Page Type (v5.0): 8+ options (landing, saas, pricing, blog, portfolio, dashboard, login, signup, ecommerce) — activates recipe pipeline
+Description: Free-form text for additional context
+
+### Moodboard (mood-board.tsx)
+
+Upload images for visual reference
+Images stored via Convex file storage
+Used for inspiration — not directly processed by pipeline
+
+### How StyleGuide Connects to Pipeline
+
+`
+
+StyleGuide ─────────────────────────────── Pipeline Phase 4
+(design-identity.ts)
+.colors.primary[0].hexColor ──────────► generatePalette() → ColorPalette
+.colors.secondary[0].hexColor ────────► generatePalette() → ColorPalette
+.colors.accent[0].hexColor ──────────► generatePalette() → ColorPalette
+.typography[0].styles[0].fontFamily ──► headingFont in DesignIdentity
+.typography[0].styles[1].fontFamily ──► bodyFont in DesignIdentity
+.preset ──────────────────────────────► selects preset builder function
+.brief.brandName ─────────────────────► overrides navBrand, footerCopy, CTAs
+.brief.industry ──────────────────────► selects industry content bank + recipe content
+.brief.tone ──────────────────────────► combined with industry for smart suggestions
+.brief.tagline ───────────────────────► prepended to heroSubtexts
+.brief.pageType ──────────────────────► v5.0: activates recipe pipeline
+
+## 10. Design Engine Pipeline (Overview)
+
+Note: The pipeline has its own comprehensive technical documentation (D2D Pipeline v5.0 Technical Documentation). This section provides a high-level overview only.
+
+### What It Does
+
+The Design Engine Pipeline is the core compiler that transforms canvas shapes + style guide into React + Tailwind CSS code. It runs entirely in the browser in < 300ms with zero API calls.
+
+### Location
+
+`
+
+src/lib/design-engine-pipeline/
+├── index.ts — Orchestrator (entry point)
+├── extractor.ts — Phase 1: Find shapes in frame
+├── classifier.ts — Phase 2: Assign UI roles
+├── spatial-graph.ts — Phase 2.5: Alignment analysis
+├── grid-detector.ts — Phase 2.75: CSS Grid detection
+├── architect.ts — Phase 3: Build hierarchy tree
+├── enhancer.ts — Phase 3.5: Pattern detection (13 rules)
+├── design-identity.ts — Phase 4: Build design system (6 presets)
+├── section-engine.ts — Phase 5: Detect page sections (9 detectors)
+├── builder.ts — Phase 6: Assemble React code
+├── component-library.ts — JSX templates (30+ renderers)
+├── content-inferrer.ts — Smart placeholder content
+├── icon-registry.ts — 40 inline SVG icons
+├── color-utils.ts — Color math utilities
+├── industry-content.ts — 10 industry content banks
+├── page-recipes.ts — v5.0: Page type recipes
+├── recipe-merger.ts — v5.0: Merge recipe + wireframe
+├── preview-builder.tsx — HTML preview builder
+├── variation-generator.ts — 3-variation generator
+├── types.ts — Type definitions
+└── stylist.ts — Legacy (deprecated)
+
+### Pipeline Phases
+
+`
+
+Phase 1: EXTRACTOR — Find shapes inside frame, normalize coordinates
+Phase 2: CLASSIFIER — Assign semantic roles (button, input, heading, etc.)
+Phase 2.5: SPATIAL — Build alignment graph (v4.0)
+Phase 2.75: GRID — Detect CSS Grid layouts (v4.0)
+Phase 3: ARCHITECT — Build parent-child hierarchy tree
+Phase 3.5: ENHANCER — Apply 13 pattern-detection rules
+Phase 4: IDENTITY — Build complete design system (100+ tokens)
+Phase 5: SECTIONS — Detect page sections (nav, hero, form, etc.)
+Phase 6: BUILDER — Assemble final React + Tailwind code
+
+### v5.0 Dual Pipeline
+
+`
+
+if (brief has pageType OR industry) {
+→ RECIPE PIPELINE:
+
+## 1. Get page recipe (8 page types × 10 industries)
+
+## 2. Analyze wireframe (if shapes exist)
+
+## 3. Merge: wireframe overrides recipe where drawn
+
+## 4. Generate: recipe fills gaps with professional templates
+
+} else {
+→ LEGACY PIPELINE: 1. Shapes → classify → tree → sections → code
+
+## 2. Pure wireframe-to-code conversion
+
+}
+
+### Entry Point
+
+` ypescript
+
+// Called by generation components
+import { generateFromFrame } from "@/lib/design-engine-pipeline";
+
+const code = await generateFromFrame(frame, allShapes, styleGuide);
+// Returns: string (React + Tailwind component, 100-700 lines)
+
+## 11. Generation & Preview System
+
+### Architecture
+
+`
+
+Files:
+src/app/(protected)/dashboard/[session]/(workspace)/generate/
+├── layout.tsx — Generation page layout
+└── page.tsx — Generation page
+src/components/generation/
+├── frame-selector.tsx — Choose which frame to generate
+├── generation-button.tsx — Trigger generation
+├── generation-panel.tsx — Results panel (legacy)
+├── generation-popup.tsx — Modal with full preview (v5.0)
+├── variation-view.tsx — 3-variation display
+├── responsive-toggle.tsx — Desktop/tablet/mobile preview toggle
+└── export-options.tsx — Code copy, HTML download, component download
+
+### Generation Flow
+
+`
+
+## 1. FRAME SELECTION (frame-selector.tsx)
+
+- Lists all frames on canvas
+- User selects target frame
+- Shows frame preview thumbnail
+
+## 2. GENERATION (generation-button.tsx)
+
+- User clicks "Generate"
+- Calls generateFromFrame(selectedFrame, allShapes, styleGuide)
+- Pipeline runs in < 300ms
+- Returns React + Tailwind code string
+
+## 3. PREVIEW (generation-popup.tsx)
+
+- Code → buildPreviewHtml() → standalone HTML
+- HTML rendered in <iframe> for live preview
+- Responsive toggle adjusts iframe width:
+  Desktop: 100% | Tablet: 768px | Mobile: 375px
+
+## 4. CODE VIEW
+
+- Syntax-highlighted code display
+- Line numbers
+- Copy to clipboard button
+
+## 5. VARIATIONS (variation-view.tsx)
+
+- 3 design variations generated simultaneously
+- Each uses a different preset (maximum contrast)
+- User switches between variations
+- Selected variation's code is used for export
+
+## 6. EXPORT (export-options.tsx)
+
+- Copy Code: copies React component to clipboard
+- Download HTML: downloads standalone HTML file
+- Download Component: downloads .tsx file
+
+### Generation Popup (v5.0)
+
+The generation popup is a modal overlay that provides the complete generation experience:
+
+`
+
+┌─────────────────────────────────────────────────────────┐
+│ ✕ Generated UI Desktop│Tablet│Mobile│
+│─────────────────────────────────────────────────────────│
+│ │
+│ ┌──────────────────────────────────────────────────┐ │
+│ │ │ │
+│ │ LIVE PREVIEW (iframe) │ │
+│ │ │ │
+│ │ Tailwind CDN loaded │ │
+│ │ Google Fonts loaded │ │
+│ │ Full responsive behavior │ │
+│ │ │ │
+│ └──────────────────────────────────────────────────┘ │
+│ │
+│ ┌─── Variations ──────────────────────────────────┐ │
+│ │ [Startup Modern] [Minimal Elegant] [Glass] │ │
+│ └──────────────────────────────────────────────────┘ │
+│ │
+│ [Copy Code] [Download HTML] [Download .tsx] │
+│ │
+│ ┌─── Code ────────────────────────────────────────┐ │
+│ │ 1 │ export default function GeneratedUI() { │ │
+│ │ 2 │ return ( │ │
+│ │ 3 │ <div className="min-h-screen..."> │ │
+│ │ ... │ ... │ │
+│ └──────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+
+### Preview HTML Building
+
+The preview-builder.tsx converts React JSX to standalone HTML:
+
+`
+
+React Component Code
+│
+├── Strip function wrapper
+├── Convert className → class
+├── Convert JSX self-closing → HTML void elements
+├── Convert style={{ }} → style=""
+├── Convert React SVG attributes → HTML SVG attributes
+│
+├── Add Tailwind CDN <script>
+├── Add Google Fonts <link> tags
+├── Add entrance animation CSS
+│
+└── Standalone HTML page
+
+## 12. Variation System
+
+### How It Works
+
+When generating code, D2D produces 3 visually contrasting variations by running the entire pipeline 3 times with different design presets:
+
+`
+
+User's preset: "startup-modern"
+→ Variation 1: startup-modern (primary choice)
+→ Variation 2: minimal-elegant (maximum contrast)
+→ Variation 3: glass-gradient (maximum contrast)
+
+Contrast mapping ensures variety:
+startup-modern ↔ minimal-elegant, glass-gradient
+corporate-clean ↔ bold-creative, glass-gradient
+bold-creative ↔ minimal-elegant, corporate-clean
+minimal-elegant ↔ bold-creative, startup-modern
+dashboard-dense ↔ bold-creative, glass-gradient
+glass-gradient ↔ corporate-clean, minimal-elegant
+
+### Key Properties
+
+Same wireframe, different styling: The tree structure (Phases 1-3.5) is identical for all 3 variations. Only Phase 4 (Design Identity) differs.
+Parallel execution: All 3 variations run via Promise.all().
+Total time: < 300ms for all 3 (each is ~100ms).
+Total cost: ₹0 (all client-side, no API calls).
+
+### Output
+
+` ypescript
+
+interface Variation {
+presetName: string; // "startup-modern"
+presetLabel: string; // "Startup Modern"
+presetDescription: string; // "Clean SaaS look with gradients..."
+code: string; // Full React + Tailwind component
+}
+
+## 13. Backend & Data Layer (Convex)
+
+### Architecture
+
+`
+
+convex/
+├── schema.ts — Database schema definition
+├── auth.ts — Authentication configuration
+├── auth.config.ts — OAuth provider config
+├── http.ts — HTTP endpoint handlers
+├── user.ts — User mutations & queries
+├── projects.ts — Project CRUD
+├── subscription.ts — Subscription management
+├── moodboard.ts — Moodboard asset management
+└── \_generated/ — Auto-generated types and API
+
+### Database Schema
+
+` ypescript
+
+// convex/schema.ts
+
+export default defineSchema({
+users: defineTable({
+clerkId: v.string(),
+email: v.string(),
+name: v.string(),
+imageUrl: v.optional(v.string()),
+plan: v.optional(v.string()),
+createdAt: v.number(),
+}).index("by_clerkId", ["clerkId"]),
+
+projects: defineTable({
+userId: v.id("users"),
+name: v.string(),
+description: v.optional(v.string()),
+shapes: v.optional(v.string()), // JSON-serialized Shape[]
+styleGuide: v.optional(v.string()), // JSON-serialized StyleGuide
+thumbnail: v.optional(v.string()),
+createdAt: v.number(),
+updatedAt: v.number(),
+}).index("by_userId", ["userId"]),
+
+subscriptions: defineTable({
+userId: v.id("users"),
+razorpaySubscriptionId: v.string(),
+plan: v.string(),
+status: v.string(),
+currentPeriodEnd: v.number(),
+createdAt: v.number(),
+}).index("by_userId", ["userId"]),
+
+moodboard_assets: defineTable({
+projectId: v.id("projects"),
+storageId: v.id("\_storage"),
+fileName: v.string(),
+fileType: v.string(),
+createdAt: v.number(),
+}).index("by_projectId", ["projectId"]),
+});
+
+### Key Mutations & Queries
+
+User operations (convex/user.ts):
+
+upsertUser — Create or update user on auth
+getUser — Fetch user by auth ID
+updatePlan — Change subscription plan
+Project operations (convex/projects.ts):
+
+createProject — New project with default name
+getProject — Fetch single project by ID
+getProjectsByUser — List all user's projects
+updateProject — Save shapes/styleGuide/thumbnail
+deleteProject — Remove project and associated data
+Moodboard operations (convex/moodboard.ts):
+
+generateUploadUrl — Get presigned upload URL
+saveAsset — Record uploaded asset
+getAssets — List project's moodboard images
+deleteAsset — Remove uploaded image
+Subscription operations (convex/subscription.ts):
+
+createSubscription — Record new subscription
+updateSubscription — Update status/plan
+getSubscription — Fetch active subscription
+
+### Client-Side Convex Integration
+
+`
+
+Files:
+src/convex/provider.tsx — ConvexProvider wrapper (WebSocket connection)
+src/convex/query.config.ts — Query configuration
+src/hooks/use-project.ts — useProject() hook for CRUD
+src/hooks/use-mood-board.ts — useMoodBoard() hook for uploads
+All Convex operations use WebSocket connections for real-time updates. When one browser tab saves a project, other tabs see the update instantly.
+
+## 14. State Management (Redux)
+
+### Store Structure
+
+`
+
+Files:
+src/redux/store.ts — Store configuration
+src/redux/provider.tsx — Redux Provider wrapper
+src/redux/slice/index.ts — Root reducer
+src/redux/slice/shapes/index.ts — Shapes slice
+src/redux/slice/viewport/index.ts — Viewport slice
+src/redux/slice/profile/index.ts — Profile slice
+src/redux/slice/projects/index.ts — Projects slice
+src/redux/api/index.ts — RTK Query base API
+src/redux/api/project/index.ts — Project API endpoints
+
+### Slices
+
+### Shapes Slice (shapes/index.ts)
+
+The most complex slice — manages all shapes on the canvas:
+
+` ypescript
+
+interface ShapesState {
+shapes: Shape[]; // All shapes on canvas
+selectedIds: string[]; // Currently selected shape IDs
+tool: ToolType; // Active drawing tool
+history: Shape[][]; // Undo stack
+future: Shape[][]; // Redo stack
+}
+
+// Key reducers:
+addShape(shape) // Add new shape
+updateShape(id, changes) // Move, resize, edit
+deleteShape(id) // Remove shape
+selectShape(id) // Select for editing
+deselectAll() // Clear selection
+setTool(tool) // Change active tool
+undo() // Revert last action
+redo() // Reapply reverted action
+loadShapes(shapes[]) // Load from project
+
+### Viewport Slice (viewport/index.ts)
+
+Canvas pan and zoom state:
+
+` ypescript
+
+interface ViewportState {
+x: number; // Pan X offset
+y: number; // Pan Y offset
+zoom: number; // Zoom level (1.0 = 100%)
+}
+
+### Profile Slice (profile/index.ts)
+
+Current user info for UI display:
+
+` ypescript
+
+interface ProfileState {
+id: string;
+name: string;
+email: string;
+imageUrl: string;
+plan: string;
+}
+
+### Projects Slice (projects/index.ts)
+
+Local project metadata (supplements Convex):
+
+` ypescript
+
+interface ProjectsState {
+currentProjectId: string | null;
+recentProjects: string[];
+}
+
+### RTK Query API
+
+` ypescript
+
+// src/redux/api/project/index.ts
+
+projectApi.endpoints:
+getProject(id) → { shapes, styleGuide, name, ... }
+updateProject(id, data) → void
+createProject(data) → { id }
+deleteProject(id) → void
+RTK Query provides caching, invalidation, and loading states for project operations.
+
+## 15. Billing & Subscription
+
+### Architecture
+
+`
+
+Files:
+src/app/(protected)/billing/page.tsx — Billing page UI
+src/app/api/webhook/razorpay/route.ts — Razorpay webhook handler
+convex/subscription.ts — Subscription CRUD
+src/types/razorpay.ts — Razorpay type definitions
+
+### Flow
+
+`
+
+## 1. User visits /billing
+
+## 2. Sees current plan (Free / Pro / Enterprise)
+
+3. Clicks "Upgrade" → Razorpay checkout opens
+
+## 4. User completes payment
+
+## 5. Razorpay sends webhook to /api/webhook/razorpay
+
+## 6. Webhook handler:
+
+a. Validates Razorpay signature
+b. Calls convex/subscription.ts:createSubscription()
+c. Updates user plan via convex/user.ts:updatePlan()
+
+## 7. UI updates to show new plan
+
+### Razorpay Integration
+
+` ypescript
+
+// src/types/razorpay.ts
+
+interface RazorpayWebhookPayload {
+event: string; // "subscription.activated", "payment.captured", etc.
+payload: {
+subscription: {
+entity: {
+id: string;
+plan_id: string;
+status: string;
+current_end: number;
+};
+};
+};
+}
+
+## 16. UI Component Library
+
+### shadcn/ui Components
+
+D2D uses 50+ shadcn/ui components located in src/components/ui/:
+
+Component Usage in D2D
+button.tsx All buttons throughout the app
+dialog.tsx Generation popup, confirmations
+dropdown-menu.tsx Canvas context menus, settings
+input.tsx Style guide inputs, brief form
+card.tsx Project cards, preset cards
+tabs.tsx Code/preview tabs in generation
+select.tsx Font selector, industry selector
+slider.tsx Opacity, zoom controls
+tooltip.tsx Toolbar tool descriptions
+accordion.tsx Collapsible sections
+badge.tsx Plan badges, status indicators
+skeleton.tsx Loading states
+sonner.tsx Toast notifications
+switch.tsx Toggle settings
+separator.tsx Visual dividers
+scroll-area.tsx Scrollable panels
+... (50+ total)
+
+### Custom Components
+
+Directory Components Purpose
+components/Navbar/ Main navigation bar App-wide navigation
+components/auth/ profile-sync.tsx Auth state → Convex sync
+components/canvas/ Canvas + toolbar + shapes Drawing engine
+components/generation/ Generation UI components Preview + export
+components/style-guide/ Style configuration forms Color/font/brief input
+components/projects/ Project list + provider Project management
+components/landing/ Landing page components Marketing pages
+components/oauth/ Google OAuth button Auth flow
+components/theme/ Theme toggle Dark/light mode
+
+## 17. Routing & Page Architecture
+
+### Route Structure
+
+`
+
+/ (root)
+├── page.tsx — Landing page (public)
+├── auth/
+│ ├── sign-in/page.tsx — Sign in page
+│ └── sign-up/page.tsx — Sign up page
+├── (protected)/ — Auth-required routes
+│ ├── billing/page.tsx — Subscription management
+│ └── dashboard/
+│ ├── page.tsx — Project list
+│ └── [session]/ — Single project
+│ ├── page.tsx — Project overview
+│ ├── layout.tsx — Project layout (loads data)
+│ ├── loading.tsx — Loading skeleton
+│ └── (workspace)/ — Project workspace
+│ ├── layout.tsx — Workspace layout (tabs)
+│ ├── page.tsx — Workspace home
+│ ├── canvas/
+│ │ ├── layout.tsx — Canvas layout
+│ │ └── page.tsx — Canvas page
+│ ├── style-guide/
+│ │ ├── layout.tsx — Style guide layout
+│ │ └── page.tsx — Style guide page
+│ └── generate/
+│ ├── layout.tsx — Generation layout
+│ └── page.tsx — Generation page
+└── api/
+├── generate/route.ts — Generation API (if needed)
+├── project/route.ts — Project API proxy
+├── inngest/route.ts — Inngest webhook
+└── webhook/razorpay/route.ts — Payment webhook
+
+### Layout Nesting
+
+`
+
+RootLayout (app/layout.tsx)
+→ Providers (Redux, Convex, Theme)
+→ Global CSS
+│
+├── PublicLayout (landing page)
+│
+└── ProtectedLayout (app/(protected)/layout.tsx)
+→ Auth middleware check
+│
+├── BillingPage
+│
+└── DashboardLayout
+│
+└── ProjectLayout ([session]/layout.tsx)
+→ Loads project data from Convex
+→ Populates Redux with shapes + styleGuide
+│
+└── WorkspaceLayout ((workspace)/layout.tsx)
+→ Tab navigation: Canvas | Style Guide | Generate
+│
+├── CanvasPage
+├── StyleGuidePage
+└── GeneratePage
+
+### Middleware
+
+` ypescript
+
+// src/middleware.ts
+
+export function middleware(request: NextRequest) {
+// Check auth state
+// Protected routes: redirect to /auth/sign-in if not authenticated
+// Auth routes: redirect to /dashboard if already authenticated
+}
+
+export const config = {
+matcher: ["/(protected)/:path*", "/auth/:path*"]
+};
+
+## 18. Background Jobs (Inngest)
+
+### Architecture
+
+`
+
+Files:
+src/inngest/client.ts — Inngest client configuration
+src/inngest/functions.ts — Job function definitions
+src/app/api/inngest/route.ts — Inngest webhook handler
+
+### Purpose
+
+Inngest handles background processing that shouldn't block the user:
+
+Thumbnail generation: After project save, generate canvas thumbnail
+Usage tracking: Record generation events for analytics
+Subscription management: Process billing state changes
+
+### Setup
+
+` ypescript
+
+// src/inngest/client.ts
+import { Inngest } from "inngest";
+
+export const inngest = new Inngest({
+id: "d2d",
+name: "D2D Application",
+});
+` ypescript
+
+// src/inngest/functions.ts
+export const functions = [
+inngest.createFunction(
+{ id: "generate-thumbnail" },
+{ event: "project/saved" },
+async ({ event }) => {
+// Generate and store thumbnail
+}
+),
+];
+
+## 19. Utility Modules
+
+src/lib/utils.ts
+General utility functions used throughout the application:
+
+` ypescript
+
+cn(...classes) // Tailwind class merger (clsx + tailwind-merge)
+escapeHtml(text) // XSS protection for user text
+formatDate(timestamp) // Date formatting
+generateId() // Unique ID generation
+debounce(fn, ms) // Debounce function calls
+src/lib/frame-snapshot.ts
+Takes a snapshot of a specific frame on the canvas for thumbnails and previews:
+
+` ypescript
+
+captureFrameSnapshot(frame, shapes) → base64 image string
+src/lib/thumbnail.ts
+Generates project thumbnails from canvas state for the project list:
+
+` ypescript
+
+generateThumbnail(shapes, viewportWidth, viewportHeight) → base64 string
+src/lib/permission.ts
+Permission checking utilities:
+
+` ypescript
+
+canEdit(user, project) → boolean
+canDelete(user, project) → boolean
+canGenerate(user, subscription) → boolean
+
+## 20. Test Suite
+
+### Architecture
+
+`
+
+src/lib/design-engine-pipeline/**tests**/
+├── fixtures/
+│ ├── shapes.ts — Mock shapes (landing page, grid, form, etc.)
+│ └── style-guides.ts — Mock style guides (tech, restaurant, empty)
+├── extractor.test.ts — 6 tests
+├── classifier.test.ts — 6 tests
+├── architect.test.ts — 7 tests
+├── spatial-graph.test.ts — 5 tests
+├── grid-detector.test.ts — 5 tests
+├── page-recipes.test.ts — 7 tests
+├── recipe-merger.test.ts — 6 tests
+├── integration.test.ts — 9 tests
+└── determinism.test.ts — 4 tests
+
+### Configuration
+
+` ypescript
+
+// vitest.config.ts
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+test: {
+// Path aliases matching tsconfig
+alias: {
+'@': './src',
+},
+},
+});
+
+### Test Categories
+
+File Tests Validates
+extractor.test.ts 6 Shape extraction, overlap ratio, coordinate normalization, sorting
+classifier.test.ts 6 Role assignment, text classification, heuristic sizing rules
+architect.test.ts 7 Hierarchy building, containment ratio, layout detection, gap calculation
+spatial-graph.test.ts 5 Pairwise alignment scoring, Gaussian decay, clique detection
+grid-detector.test.ts 5 Grid pattern recognition, gap consistency, confidence scoring
+page-recipes.test.ts 7 Recipe selection, industry overrides, unknown type fallback
+recipe-merger.test.ts 6 Merge strategy, type matching, wireframe override, order inference
+integration.test.ts 9 Full pipeline end-to-end for both legacy and recipe paths
+determinism.test.ts 4 Same input → identical output across multiple runs
+
+### Running Tests
+
+`ash
+
+npx vitest # Run all tests
+npx vitest --watch # Watch mode
+npx vitest run --reporter=verbose # Verbose output
+
+## 21. Configuration & DevOps
+
+### Config Files
+
+File Purpose
+next.config.ts Next.js configuration (redirects, images, env)
+tsconfig.json TypeScript configuration (path aliases, strict mode)
+postcss.config.mjs PostCSS configuration (Tailwind processing)
+eslint.config.mjs ESLint rules
+components.json shadcn/ui configuration (component generation settings)
+vitest.config.ts Vitest test runner configuration
+package.json Dependencies and scripts
+convex/tsconfig.json Convex-specific TypeScript config
+
+### Key Path Aliases
+
+`json
+
+// tsconfig.json
+{
+"compilerOptions": {
+"paths": {
+"@/_": ["./src/_"]
+}
+}
+}
+This allows imports like:
+
+` ypescript
+
+import { generateFromFrame } from "@/lib/design-engine-pipeline";
+import { Button } from "@/components/ui/button";
+import type { StyleGuide } from "@/types/style-guide";
+
+### Scripts
+
+`json
+
+// package.json (typical)
+{
+"scripts": {
+"dev": "next dev",
+"build": "next build",
+"start": "next start",
+"lint": "eslint .",
+"test": "vitest",
+"convex:dev": "convex dev",
+"convex:deploy": "convex deploy"
+}
+}
+
+## 22. Complete File Reference
+
+### Root Files
+
+File Purpose
+README.md Project readme
+package.json Dependencies and scripts
+tsconfig.json TypeScript configuration
+next.config.ts Next.js configuration
+postcss.config.mjs PostCSS/Tailwind setup
+eslint.config.mjs Linting rules
+components.json shadcn/ui config
+vitest.config.ts Test configuration
+next-env.d.ts Next.js type declarations
+\*.docs Documentation files (this document, pipeline docs, version notes)
+
+### convex/ — Backend
+
+File Purpose
+schema.ts Database schema (users, projects, subscriptions, moodboard)
+auth.ts Convex Auth setup
+auth.config.ts OAuth provider configuration
+http.ts HTTP route handlers
+user.ts User mutations & queries
+projects.ts Project CRUD operations
+subscription.ts Subscription management
+moodboard.ts Moodboard asset operations
+\_generated/ Auto-generated API types
+
+### src/app/ — Pages & Routes
+
+Path File Purpose
+/ page.tsx Landing page
+/ layout.tsx Root layout (providers)
+/ globals.css Global styles
+/auth/sign-in page.tsx Sign in page
+/auth/sign-up page.tsx Sign up page
+/billing page.tsx Subscription management
+/dashboard page.tsx Project list
+/dashboard/[session] page.tsx, layout.tsx, loading.tsx Project shell
+/dashboard/[session]/canvas page.tsx, layout.tsx Canvas drawing
+/dashboard/[session]/style-guide page.tsx, layout.tsx Style configuration
+/dashboard/[session]/generate page.tsx, layout.tsx Code generation
+/api/generate route.ts Generation API endpoint
+/api/project route.ts Project API proxy
+/api/inngest route.ts Inngest webhook
+/api/webhook/razorpay route.ts Payment webhook
+
+### src/components/ — UI Components
+
+Directory Files Purpose
+Navbar/ index.tsx App navigation bar
+auth/ profile-sync.tsx Auth → data sync
+buttons/project/ index.tsx Create project button
+canvas/ index.tsx + toolbar + 25 shape components Drawing engine
+generation/ 7 files Generation UI (popup, preview, export)
+landing/ animated.tsx, live-canvas.tsx, magnetic.tsx Landing page components
+oauth/ google.tsx Google sign-in button
+projects/ list.tsx, provider.tsx Project management
+style-guide/ 6 files Color, font, preset, brief, moodboard
+theme/ theme-toggle.tsx Dark/light mode
+ui/ 50+ files shadcn/ui component library
+
+### src/hooks/ — Custom Hooks
+
+Hook Purpose
+use-auth.ts Authentication state
+use-auto-save.ts Debounced project saving
+use-canvas.ts Canvas interaction logic
+use-mobile.ts Mobile device detection
+use-mood-board.ts Moodboard operations
+use-project-moodboard.ts Project-scoped moodboard
+use-project-style-guide.ts Project-scoped style guide
+use-project.ts Project CRUD
+use-style-guide.ts Style guide state
+use-tilt.ts 3D tilt effect (landing page)
+
+### src/lib/ — Libraries
+
+Path Purpose
+design-engine-pipeline/ 19 files — The core compilation pipeline (see Pipeline Documentation)
+frame-snapshot.ts Canvas frame screenshot
+thumbnail.ts Project thumbnail generation
+permission.ts Authorization checks
+utils.ts General utilities (cn, escapeHtml, etc.)
+
+### src/redux/ — State Management
+
+Path Purpose
+store.ts Redux store configuration
+provider.tsx Redux Provider component
+slice/shapes/ Canvas shapes state
+slice/viewport/ Pan/zoom state
+slice/profile/ User profile state
+slice/projects/ Project metadata state
+api/project/ RTK Query project endpoints
+
+### src/types/ — Type Definitions
+
+File Purpose
+style-guide.ts StyleGuide, DesignBrief, ColorEntry interfaces
+razorpay.ts Razorpay webhook payload types
+user.ts User-related types
+
+### src/inngest/ — Background Jobs
+
+File Purpose
+client.ts Inngest client instance
+functions.ts Job function definitions
+This document covers the complete D2D v5.0 product — from authentication to canvas drawing to style configuration to deterministic code generation to billing. The Design Engine Pipeline has its own companion document covering every phase, algorithm, and data transformation in detail.

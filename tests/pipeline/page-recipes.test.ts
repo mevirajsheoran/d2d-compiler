@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPageRecipe } from "../page-recipes";
+import { getPageRecipe } from "@/lib/design-engine-pipeline/page-recipes";
 
 describe("Page Recipes", () => {
   it("returns landing page recipe with nav and footer", () => {
@@ -14,7 +14,6 @@ describe("Page Recipes", () => {
   it("applies industry-specific overrides", () => {
     const techRecipe = getPageRecipe("Landing Page", "tech");
     const restaurantRecipe = getPageRecipe("Landing Page", "restaurant");
-    // Both should have features but potentially different configs
     const techFeatures = techRecipe.find((s) => s.type === "features");
     const restFeatures = restaurantRecipe.find((s) => s.type === "features");
     expect(techFeatures).toBeDefined();

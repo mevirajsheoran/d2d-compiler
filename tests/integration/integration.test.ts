@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { generateFromFrame } from "../index";
+import { generateFromFrame } from "@/lib/design-engine-pipeline/index";
 import {
   LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES,
   EMPTY_FRAME, EMPTY_SHAPES,
   MINIMAL_FRAME, MINIMAL_SHAPES,
   FORM_FRAME, FORM_SHAPES,
-} from "@/lib/design-engine-pipeline/__tests__/fixtures/shapes";
+} from "../fixtures/shapes";
 import {
   TECH_LANDING_GUIDE,
   RESTAURANT_LANDING_GUIDE,
   NO_BRIEF_GUIDE,
   SAAS_GUIDE,
   LOGIN_GUIDE,
-} from "@/lib/design-engine-pipeline/__tests__/fixtures/style-guides";
+} from "../fixtures/style-guides";
 
 describe("Integration: Full Pipeline", () => {
   it("generates valid JSX from landing page shapes + brief", async () => {
@@ -52,7 +52,6 @@ describe("Integration: Full Pipeline", () => {
     const code = await generateFromFrame(
       LANDING_PAGE_FRAME as any, LANDING_PAGE_SHAPES as any[], NO_BRIEF_GUIDE
     );
-    // Should still produce valid output (legacy wireframe-only)
     expect(code).toContain("export default function GeneratedUI");
   });
 
@@ -89,11 +88,9 @@ describe("Integration: Full Pipeline", () => {
   });
 
   it("wireframe sections override recipe defaults", async () => {
-    // Draw a hero with custom text + use tech landing guide
     const code = await generateFromFrame(
       LANDING_PAGE_FRAME as any, LANDING_PAGE_SHAPES as any[], TECH_LANDING_GUIDE
     );
-    // The user's heading text should appear (wireframe overrides recipe hero)
     expect(code).toContain("Welcome to Our Product");
   });
 

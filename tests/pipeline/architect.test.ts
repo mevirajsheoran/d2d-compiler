@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { buildHierarchy } from "../architect";
-import { classifyShapes } from "../classifier";
-import { extractShapesFromFrame } from "../extractor";
-import { LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES } from "@/lib/design-engine-pipeline/__tests__/fixtures/shapes";
+import { buildHierarchy } from "@/lib/design-engine-pipeline/architect";
+import { classifyShapes } from "@/lib/design-engine-pipeline/classifier";
+import { extractShapesFromFrame } from "@/lib/design-engine-pipeline/extractor";
+import { LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES } from "../fixtures/shapes";
 
 function findNodeById(node: any, id: string): any | null {
   if (node.id === id) return node;

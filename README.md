@@ -1,319 +1,184 @@
-  # D2D — Drawing to Design
+# D2D — Deterministic Design Compiler
 
-  **Turn your rough sketch into production-ready React code in under a second — with zero AI cost and zero guesswork.**
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-39%20passing-brightgreen)](tests/)
 
-  D2D is a web application that transforms hand-drawn wireframes into styled, responsive React components. You draw on an infinite canvas, configure context and style through a guided flow, and generate clean React + Tailwind CSS code — with industry-specific content, brand permeation, and multiple design variations — all deterministic and running in the browser.
+**Turn a rough sketch into production-ready React code in under a second — zero AI cost, zero guesswork.**
 
-  ---
+D2D is a deterministic design compiler that transforms hand-drawn wireframes into styled, responsive React + Tailwind CSS components. Everything runs in the browser. No API calls. No LLMs. Same input → same output, every time.
 
-  ## Table of Contents
+---
 
-  - [What D2D Does](#what-d2d-does)
-  - [v3.0: UX & Capability Expansion](#v30-ux--capability-expansion)
-  - [The Four-Step Guided Flow](#the-four-step-guided-flow)
-  - [Features in Detail](#features-in-detail)
-  - [Pipeline Architecture](#pipeline-architecture)
-  - [State & Data Architecture](#state--data-architecture)
-  - [Security & Performance](#security--performance)
-  - [Tech Stack](#tech-stack)
-  - [Getting Started](#getting-started)
-  - [Project Structure](#project-structure)
-  - [Documentation](#documentation)
+## Features
 
-  ---
+- **Infinite canvas** — 10 drawing tools, keyboard shortcuts, zoom, pan, auto-save
+- **Design Brief** — Structured context: page type, industry, tone, brand name, tagline
+- **Deterministic pipeline** — 7-phase engine: extract → classify → architect → enhance → style → build → display
+- **Multi-variation output** — 3 simultaneous design variations with instant style switching across 6 presets
+- **Industry-aware content** — 10 industry content banks replace generic placeholder text
+- **Brand permeation** — Your brand name woven into nav, hero, footer, and CTAs automatically
+- **Live preview** — Responsive preview (desktop / tablet / mobile) with code editor
+- **Export** — Copy code, download TSX, download HTML, or export design tokens JSON
+- **Zero cost** — All generation is client-side. No server compute. No per-generation fees.
 
-  ## What D2D Does
+---
 
-  - **Canvas** — Draw wireframes with 10+ tools (select, pan, pen, rectangle, ellipse, arrow, line, text, frame, eraser) on an infinite canvas. Frames define artboards for generation.
-  - **Context & style** — Capture *why* you’re drawing (industry, tone, brand, page type) via a **Design Brief**, then choose colors, typography, and a **design preset** with live preview.
-  - **Generation** — Deterministic pipeline turns shapes + style guide + brief into production-ready React + Tailwind. **Three variations** per run (different presets, contrast-selected), in &lt;300ms, **₹0 cost**.
-  - **Export** — Copy code, download TSX, download standalone HTML, or export design tokens JSON. Responsive preview (desktop/tablet/mobile) and “Try Another Style” across all six presets.
+## Architecture
 
-  No AI API calls. No server-side generation. Same input → same output, every time.
+```
+Canvas (Redux)
+   │
+   ▼
+┌──────────────────────────────────────────────────────┐
+│  DETERMINISTIC PIPELINE (runs in browser, <100ms)    │
+│                                                      │
+│  1. Extractor    — shapes inside frame → normalized  │
+│  2. Classifier   — shape → semantic UI role (17)     │
+│  3. Architect    — flat list → nested tree + layout  │
+│  4. Enhancer     — 8 design pattern rules            │
+│  5. Stylist      — style guide → Tailwind classes    │
+│  6. Builder      — tree → React + Tailwind JSX       │
+│  7. Display      — live preview + code panel         │
+└──────────────────────────────────────────────────────┘
+   │
+   ▼
+React + Tailwind CSS Component
+(responsive, interactive, production-ready)
+```
+
+See [docs/architecture.md](docs/architecture.md) for the full technical breakdown.
+
+---
+
+## How It Works
+
+1. **Draw** — Sketch your wireframe on the infinite canvas using rectangles, text, frames, and more.
+2. **Configure** — Fill in the Design Brief (industry, tone, brand) and choose a design preset with live preview.
+3. **Generate** — Click generate. The pipeline produces 3 styled variations in <300ms.
+4. **Export** — Copy the React + Tailwind code, download as TSX/HTML, or export design tokens.
+
+---
 
-  ---
+## Tech Stack
 
-  ## v3.0: UX & Capability Expansion
+| Layer     | Technology                         |
+| --------- | ---------------------------------- |
+| Framework | Next.js 15, React 19               |
+| Language  | TypeScript                         |
+| Styling   | Tailwind CSS                       |
+| State     | Redux Toolkit                      |
+| Backend   | Convex (real-time BaaS)            |
+| Auth      | Convex Auth (Google OAuth + email) |
+| Payments  | Razorpay                           |
+| Testing   | Vitest                             |
+| Hosting   | Vercel                             |
+
+---
 
-  v3.0 adds the **context layer** on top of the v2.0 generation engine.
+## Getting Started
 
-  | Layer | v2.0 | v3.0 |
-  |-------|------|------|
-  | **Spatial intent** | ✅ Position, dimensions, containment | Same |
-  | **Design preferences** | ✅ Colors, typography, preset | Same + **Design Brief**, **Smart Suggestions** |
-  | **Semantic context** | ❌ Generic content for all wireframes | ✅ **Industry**, **tone**, **brand**, **tagline**, **page type** |
-  | **Output** | Single generation (popup) | **Three variations** + **dedicated Generation page** |
-  | **Preview** | After generate | **Live preview** as you change settings (Style Guide) |
-  | **Export** | Copy, TSX | + **Download HTML**, **Design Tokens JSON** |
+### Prerequisites
 
-  **Projected quality impact (from version3.0.docs):**
+- Node.js ≥ 18
+- npm ≥ 9
 
-  - Overall quality score: **62/100 → 85/100**
-  - Content relevance: **40 → 85**
-  - Brand personality: **20 → 70**
-  - User confidence: **50 → 100**
+### Installation
 
-  **Engineering (v3.0 scope):**
+```bash
+git clone https://github.com/mevirajsheoran/d2d-compiler.git
+cd d2d-compiler
+npm install
+```
 
-  - ~3,420 lines new/modified TypeScript across 23 files
-  - 15 new files, 8 modified, 4 deleted (design-brain, moodboard-analyzer, related API routes)
-  - Zero new dependencies, zero Convex schema changes, zero breaking changes to existing features
+### Environment Variables
 
-  ---
+```bash
+cp .env.example .env.local
+```
 
-  ## The Four-Step Guided Flow
+Fill in your Convex deployment URL and auth configuration.
 
-  The product mirrors a design-agency workflow in under 60 seconds:
+### Development
 
-  ```
-    STEP 1            STEP 2              STEP 3              STEP 4
-    Canvas        →   Style Guide    →   Generation     →   Export
-    (draw)            (configure)        (reveal)           (use)
+```bash
+npm run dev
+```
 
-    5–10 min          30–60 sec          < 1 sec             instant
-  ```
+Open [http://localhost:3000](http://localhost:3000).
 
-  ### Step 1: Canvas
+---
 
-  - **URL:** `/dashboard/[session]/canvas?project=xxx`
-  - Draw wireframes inside **frames** (press F). All existing tools and shortcuts unchanged.
-  - **Generate** button: force-saves to Convex, then:
-    - **0 frames:** Error toast — “Draw a frame first (press F).”
-    - **1 frame:** Navigate to Style Guide with `?project=xxx&frames=frameId`.
-    - **2+ frames:** **Frame Selector** modal → select frames (optional names) → “Continue to Style Guide” with `?project=xxx&frames=id1,id2`.
+## Running Tests
 
-  ### Step 2: Style Guide
+```bash
+npm test
+```
 
-  - **URL:** `/dashboard/[session]/style-guide?project=xxx&frames=...`
-  - **Tab 1 — Design Brief:** Page type (icon cards), industry (emoji chips), tone (visual preview cards), brand name, tagline. **Smart Suggestions** panel: “Apply All” sets preset, color, fonts from industry×tone (30 mappings).
-  - **Tab 2 — Design Style:** Six preset cards with **mini live previews**; “Recommended” badge from suggestions. Replaces Mood Board tab.
-  - **Tab 3–4:** Colors, Typography (existing, can be pre-filled by suggestions).
-  - **Right sidebar:** **Live preview** — fixed template (nav, hero, features, footer) with current identity; updates in real time (100ms debounce).
-  - **Bottom:** “Generate Design →” navigates to Generation page with same `project` and `frames` params.
+The test suite covers the deterministic pipeline: extractor, classifier, architect, spatial graph, grid detection, determinism verification, and integration scenarios.
 
-  ### Step 3: Generation Page
+---
 
-  - **URL:** `/dashboard/[session]/generate?project=xxx&frames=...`
-  - **Loading:** 1.5s animated sequence (pipeline runs in &lt;300ms during it).
-  - **Three variation cards** side by side (scaled preview iframes). Click one to expand:
-    - **Left:** Code (syntax-highlighted).
-    - **Right:** Live preview + **responsive toggle** (desktop 1440px / tablet 768px / mobile 375px).
-  - **Export:** Copy code, Download TSX, **Download HTML**, **Design Tokens JSON**.
-  - **“Try Another Style”** dropdown: switch to any of the six presets; re-run pipeline (&lt;100ms), update code and preview.
-  - **Quality score** (collapsible): overall + 5 dimensions (responsiveness, component richness, typography, color harmony, content relevance) with tips.
-  - **“Explain My Design”** (collapsible): how the pipeline interpreted sections (nav, hero, features, etc.) and which preset/content/brand was applied.
-  - **Navigation:** “Back to Style Guide”, “Back to Canvas”. Data read from Convex; generation results cached in `projects.generatedDesignData` keyed by input hash.
+## Project Structure
 
-  ### Step 4: Export
+```
+d2d-compiler/
+├── src/
+│   ├── app/                    # Next.js app router pages
+│   ├── components/             # React components
+│   ├── lib/
+│   │   └── design-engine-pipeline/  # Deterministic generation engine
+│   └── store/                  # Redux state management
+├── convex/                     # Convex backend (schema, functions, auth)
+├── tests/                      # Test suites
+│   ├── pipeline/               # Pipeline phase tests
+│   ├── determinism/            # Determinism verification
+│   └── integration/            # End-to-end pipeline tests
+├── docs/                       # Technical documentation
+│   ├── product.md              # Complete product docs (v5.0)
+│   ├── pipeline.md             # Pipeline technical deep dive (v5.0)
+│   ├── code-stats.md           # Codebase statistics
+│   └── history/                # Older version documentation
+├── assets/                     # README media (demo GIF, diagrams)
+├── examples/                   # Sample wireframe data
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── ROADMAP.md
+└── LICENSE
+```
 
-  - All export actions are on the Generation page (copy, TSX, HTML, tokens). No separate export step; user can then go back to Style Guide or Canvas, or create a new project.
+---
 
-  ---
+## Documentation
 
-  ## Features in Detail
+### Primary
 
-  ### Design Brief (five fields)
+| Document                            | Description                                         |
+| ----------------------------------- | --------------------------------------------------- |
+| [product.md](docs/product.md)       | Complete D2D product documentation (v5.0)           |
+| [pipeline.md](docs/pipeline.md)     | Design engine pipeline — technical deep dive (v5.0) |
+| [code-stats.md](docs/code-stats.md) | Codebase statistics                                 |
 
-  | Field | Input | Purpose |
-  |-------|------|--------|
-  | **Page type** | Icon cards (Landing, Dashboard, Login, Blog, Portfolio, E-commerce, etc.) | Section template hints, content selection |
-  | **Industry** | Emoji chips (Technology, Healthcare, Food & Beverage, Education, E-commerce, Finance, Agency, Fitness, Real Estate, Travel, Legal, etc.) | Content bank selection, icons, suggestion mapping |
-  | **Tone** | Visual preview cards (Professional, Playful, Minimal, Bold, Elegant, Futuristic) | Maps to preset + content tone |
-  | **Brand name** | Text input (max 30 chars) | Nav logo, footer, CTA, code comment; HTML-escaped |
-  | **Tagline** | Text input (max 100 chars) | Hero subtitle, CTA; HTML-escaped |
+### Version History
 
-  Stored in `styleGuide.brief` (JSON in Convex). Optional; missing values fall back to defaults (e.g. industry `"tech"`, brand `"Brand"`).
+| Document                                                    | Description                       |
+| ----------------------------------------------------------- | --------------------------------- |
+| [architecture-v1-v3.md](docs/history/architecture-v1-v3.md) | Architecture overview (v1–v3 era) |
+| [pipeline-v2.md](docs/history/pipeline-v2.md)               | Pipeline v2.0 specification       |
+| [pipeline-v3.md](docs/history/pipeline-v3.md)               | Pipeline v3.0 specification       |
+| [ux-v3.md](docs/history/ux-v3.md)                           | v3.0 UX and capability expansion  |
+| [version-comparison.md](docs/history/version-comparison.md) | MVP → v2.0 → v3.0 evolution       |
+| [mvp-history.md](docs/history/mvp-history.md)               | Original MVP product document     |
 
-  ### Industry content engine
+---
 
-  - **10 industry content banks** (e.g. Technology, Healthcare, Food & Beverage, Education, E-commerce, Finance, Agency, Fitness, Real Estate, Travel).
-  - Each bank: `heroHeadings`, `heroSubtexts`, `featureTitles`, `featureDescriptions`, `ctaPrimary`, `ctaSecondary`, `navLinks`, `footerLinks`, `icons`, `colorSuggestion`, `fontSuggestion`.
-  - **Content selection:** deterministic position-based hash (same wireframe position → same string). No randomness.
-  - **Brand permeation:** brand name and tagline used in nav, hero, CTA, footer, and code comments.
+## Contributing
 
-  ### Smart suggestions
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and PR guidelines.
 
-  - **30 mappings:** `(industry, tone) → (preset, primaryColor, headingFont, bodyFont)`.
-  - After user selects industry and tone, a suggestion panel shows recommended preset, color, and fonts with “Apply” / “Apply All”. Non-destructive until user clicks.
+See [ROADMAP.md](ROADMAP.md) for planned features.
 
-  ### Design preset selector
+---
 
-  - **Six presets:** e.g. Startup Modern, Corporate Clean, Bold Creative, Minimal Elegant, Dashboard Dense, Glass Gradient.
-  - Each card: mini live preview (micro-iframe), name, short description, color dots. “Recommended” badge when suggestion matches.
-  - Selection stored in `styleGuide.preset`.
+## License
 
-  ### Live preview (Style Guide)
-
-  - **Fixed template** (nav, hero, 3 feature cards, footer) rendered with current identity (colors, fonts, radius, shadow).
-  - Renders in a sidebar iframe; updates on any setting change (100ms debounce). Hidden on mobile.
-
-  ### Multi-variation generation
-
-  - **Three variations** per generation. Presets chosen for **contrast** (e.g. startup-modern vs minimal-elegant vs glass-gradient).
-  - Logic: user’s selected preset (or suggested) as primary; other two from contrast mapping.
-  - **Variation generator** runs pipeline three times with three preset overrides; total &lt;300ms, client-side only.
-
-  ### Generation page specifics
-
-  - **Responsive preview:** Desktop / Tablet / Mobile toggle; iframe container width and layout reflect breakpoints.
-  - **Export formats:** Copy code, Download TSX, **Download HTML** (standalone with Tailwind CDN), **Design Tokens JSON**.
-  - **Quality score:** Responsiveness, component richness, typography, color harmony, content relevance; actionable tips.
-  - **Explain My Design:** Collapsible list of pipeline decisions (sections detected, preset, content bank, brand).
-
-  ---
-
-  ## Pipeline Architecture
-
-  The v2.0 **seven-phase pipeline** is unchanged in structure; v3.0 adds context and a variation layer.
-
-  **Unchanged phases:** Extractor → Classifier → Architect → Enhancer.
-
-  **Modified:**
-
-  - **Stylist / Design Identity:** Accepts `brief`; uses `brief.brandName`, `brief.tone` (preset fallback); identity includes `content.brandName`, `content.tagline`.
-  - **Builder:** Section composition (alternating backgrounds), entrance animation stagger, brand name in nav/footer/CTA. **Content Inferrer** accepts `DesignBrief`; selects from industry content banks; uses escaped brand/tagline.
-  - **Orchestrator (index.ts):** Extracts `brief` from `styleGuide`, passes to content inferrer and identity builder.
-
-  **New module:**
-
-  - **Variation generator:** `selectThreePresets(selected, suggested)` (contrast mapping), `generateVariations(frame, allShapes, styleGuide)` → runs pipeline 3×, returns `Variation[]` (presetName, presetLabel, code).
-
-  **New pipeline-related files (from version3.0.docs):**
-
-  - `src/lib/ai-pipeline/industry-content.ts` — Content banks, suggestion table, `getSuggestions`, `getIndustryContent`, `getIndustryIcons`.
-  - `src/lib/ai-pipeline/variation-generator.ts` — `selectThreePresets`, `generateVariations`.
-
-  ---
-
-  ## State & Data Architecture
-
-  - **Shapes / viewport:** Runtime in Redux (canvas). Persisted in Convex `projects.sketchesData`, `projects.viewportData`. **Force save** (direct `updateProject` mutation) before leaving canvas so nothing is lost.
-  - **Style guide:** Runtime in `useStyleGuide`; persisted as JSON string in `projects.styleGuide` (includes `colors`, `typography`, `brief`, `preset`). Debounced save (e.g. 800ms).
-  - **Selected frames:** Not stored in DB; passed via URL `?frames=id1,id2`.
-  - **Generation results:** Cached in `projects.generatedDesignData`: `inputHash`, `generatedAt`, `frames[frameId].variations[]` (presetName, presetLabel, code). On load, if `hash(shapes, styleGuide) === cache.inputHash`, show cache; else run `generateVariations()` and save.
-  - **Convex:** No schema changes; `styleGuide` gains keys, `generatedDesignData` used for cache.
-
-  ---
-
-  ## Security & Performance
-
-  - **XSS:** All user-supplied text (brand name, tagline) is HTML-escaped before insertion into generated code and previews.
-  - **Preview iframes:** `sandbox="allow-scripts"` (no `allow-same-origin`); CSP in iframe HTML limits scripts to Tailwind CDN and styles/fonts to known origins.
-  - **Performance:** Three variation previews: first iframe loads Tailwind + fonts (~130–180KB); second and third reuse cache. Scaled thumbnails (CSS transform); full-size preview only when user expands a variation. Loading skeletons while iframes load.
-
-  ---
-
-  ## Tech Stack
-
-  | Layer | Technology |
-  |-------|------------|
-  | Framework | Next.js 16 (App Router), React 19 |
-  | Styling | Tailwind CSS 4, Radix UI, Framer Motion |
-  | Backend | Convex (real-time BaaS) |
-  | Auth | Convex Auth (Google OAuth + email/password) |
-  | Payments | Razorpay |
-  | State | Redux Toolkit (canvas/shapes), React state |
-  | Background jobs | Inngest |
-
-  ---
-
-  ## Getting Started
-
-  ### Prerequisites
-
-  - Node.js 20+
-  - npm / pnpm / yarn / bun
-  - [Convex](https://convex.dev) account
-  - (Optional) Razorpay for subscriptions
-
-  ### 1. Clone and install
-
-  ```bash
-  git clone <your-repo-url>
-  cd d2d
-  npm install
-  ```
-
-  ### 2. Environment variables
-
-  Create `.env.local`:
-
-  ```env
-  # Required — from Convex dashboard
-  NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-
-  # Optional — Billing
-  NEXT_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key_id
-  RAZORPAY_PRO_MONTHLY_PLAN_ID=plan_xxx
-  RAZORPAY_PRO_YEARLY_PLAN_ID=plan_yyy
-  ```
-
-  ### 3. Convex
-
-  ```bash
-  npx convex dev
-  ```
-
-  Log in, link or create a project; this can set `NEXT_PUBLIC_CONVEX_URL` in `.env.local`.
-
-  ### 4. Run the app
-
-  ```bash
-  npm run dev
-  ```
-
-  Open [http://localhost:3000](http://localhost:3000). Sign in, create a project, draw a frame, and use **Generate** to follow the four-step flow.
-
-  ### Scripts
-
-  | Command | Description |
-  |--------|-------------|
-  | `npm run dev` | Next.js dev server (Turbopack) |
-  | `npm run build` | Production build |
-  | `npm run start` | Production server |
-  | `npm run lint` | ESLint |
-
-  Keep `npx convex dev` running while developing.
-
-  ---
-
-  ## Project Structure (high level)
-
-  ```
-  d2d/
-  ├── src/
-  │   ├── app/                    # App Router: landing, dashboard, canvas, style-guide, generate
-  │   ├── components/
-  │   │   ├── canvas/             # Canvas, shapes, toolbar, frame (Generate → force save → navigate)
-  │   │   ├── generation/        # Frame selector, variation view, responsive toggle, export, quality score
-  │   │   ├── style-guide/        # Design brief, preset selector, (live preview), colors, typography
-  │   │   └── ...
-  │   ├── convex/                # Convex React client
-  │   ├── hooks/                  # useCanvas, useStyleGuide (brief + preset), useAuth, ...
-  │   ├── lib/
-  │   │   └── ai-pipeline/        # Extractor, Classifier, Architect, Enhancer, Stylist, Builder,
-  │   │                           # content-inferrer, design-identity, industry-content,
-  │   │                           # variation-generator, preview-builder
-  │   ├── redux/                  # Canvas state (shapes, viewport, history)
-  │   └── types/                  # style-guide (DesignBrief, StyleGuide), etc.
-  ├── convex/                     # Auth, projects, schema, subscriptions, moodboard
-  ├── mvp.docs                    # Product & technical spec (MVP)
-  ├── v2.0.docs                   # AI pipeline v2.0
-  └── version3.0.docs             # v3.0 UX & capability expansion (this README’s source)
-  ```
-
-  ---
-
-  ## Documentation
-
-  | Document | Description |
-  |----------|-------------|
-  | **mvp.docs** | Full product and technical spec: user journey, features, stack, deployment, business model. |
-  | **v2.0.docs** | Generation pipeline v2.0: seven phases, data flow, type system, file manifest. |
-  | **version3.0.docs** | v3.0: Design Brief, industry content, Smart Suggestions, presets, live preview, multi-variation, Generation page, state persistence, pipeline changes, security, file architecture, build plan, quality projection, competitive position. |
-
-  ---
-
-  ## License
-
-  Private. All rights reserved.
+MIT — see [LICENSE](LICENSE) for details.

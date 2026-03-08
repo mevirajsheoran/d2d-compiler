@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { extractShapesFromFrame } from "../extractor";
-import { LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES, EMPTY_FRAME, EMPTY_SHAPES } from "@/lib/design-engine-pipeline/__tests__/fixtures/shapes";
+import { extractShapesFromFrame } from "@/lib/design-engine-pipeline/extractor";
+import { LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES, EMPTY_FRAME, EMPTY_SHAPES } from "../fixtures/shapes";
 
 describe("Extractor (Phase 1)", () => {
   const frame = LANDING_PAGE_FRAME as any;

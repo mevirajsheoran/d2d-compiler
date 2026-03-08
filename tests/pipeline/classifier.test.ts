@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { classifyShapes } from "../classifier";
-import { extractShapesFromFrame } from "../extractor";
+import { classifyShapes } from "@/lib/design-engine-pipeline/classifier";
+import { extractShapesFromFrame } from "@/lib/design-engine-pipeline/extractor";
 import {
   LANDING_PAGE_FRAME, LANDING_PAGE_SHAPES,
   FORM_FRAME, FORM_SHAPES,
-} from "@/lib/design-engine-pipeline/__tests__/fixtures/shapes";
+} from "../fixtures/shapes";
 
 describe("Classifier (Phase 2)", () => {
   it("classifies buttonShape as button", () => {

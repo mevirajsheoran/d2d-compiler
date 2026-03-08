@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { mergeRecipeWithWireframe } from "../recipe-merger";
-import { getPageRecipe } from "../page-recipes";
-import type { DetectedSection } from "../types";
+import { mergeRecipeWithWireframe } from "@/lib/design-engine-pipeline/recipe-merger";
+import { getPageRecipe } from "@/lib/design-engine-pipeline/page-recipes";
+import type { DetectedSection } from "@/lib/design-engine-pipeline/types";
 
 function makeDetected(type: string, orderIndex: number): DetectedSection {
   return {
@@ -59,7 +59,6 @@ describe("Recipe Merger", () => {
   });
 
   it("non-overridable recipe sections always use recipe", () => {
-    // logo-cloud, testimonial, newsletter are non-overridable
     const merged = mergeRecipeWithWireframe(recipe, []);
     const logoCloud = merged.find((m) => m.type === "logo-cloud");
     expect(logoCloud).toBeDefined();
