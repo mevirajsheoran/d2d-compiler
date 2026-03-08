@@ -1,4 +1,4 @@
-// src/components/Navbar/index.tsx
+// src/components/navbar/index.tsx
 "use client";
 
 import { useSearchParams, usePathname } from "next/navigation";
