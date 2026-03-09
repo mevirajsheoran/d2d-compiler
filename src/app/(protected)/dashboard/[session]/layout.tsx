@@ -1,5 +1,5 @@
 // src/app/(protected)/dashboard/[session]/layout.tsx
-import { Navbar } from "@/components/navbar";
+import { Navbar } from "@/components/Navbar";
 import { ProfileSync } from "@/components/auth/profile-sync";
 
 interface SessionLayoutProps {
