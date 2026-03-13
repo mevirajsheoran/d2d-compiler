@@ -430,10 +430,10 @@ export default function LandingPage() {
                 Under the hood
               </p>
               <h2 className="text-5xl md:text-6xl font-bold tracking-tight mb-4">
-  Purpose-built
-  <br />
-  <GradientText>compiler engineering.</GradientText>
-</h2>
+                Purpose-built
+                <br />
+                <GradientText>compiler engineering.</GradientText>
+              </h2>
               <p className="text-gray-500 text-lg max-w-2xl mx-auto mt-6">
                 19 TypeScript files. 6 compilation phases. Pure geometry analysis
                 and template composition. Every CSS class is deterministically
@@ -553,29 +553,11 @@ export default function LandingPage() {
       </section>
 
       {/* Divider */}
-            {/* ═════════════════════════════════════════════════════
+      {/* ═════════════════════════════════════════════════════
            ENGINEERING DEPTH
            ═════════════════════════════════════════════════════ */}
       <section className="py-32 px-8">
         <div className="max-w-[1400px] mx-auto">
-          <FadeInOnScroll>
-            <div className="text-center mb-6">
-              <p className="text-sm text-gray-500 mb-4 tracking-widest uppercase">
-                Engineering
-              </p>
-              <h2 className="text-5xl md:text-6xl font-bold tracking-tight mb-4">
-                Purpose-built
-                <br />
-                <GradientText>compiler engineering.</GradientText>
-              </h2>
-              <p className="text-gray-500 text-lg max-w-2xl mx-auto mt-6">
-                D2D isn&apos;t a prompt wrapper. It&apos;s a multi-phase compiler
-                built on novel algorithms and purpose-built data structures —
-                every one hand-written, every one tested.
-              </p>
-            </div>
-          </FadeInOnScroll>
-
           {/* ── Novel Algorithms ──────────────────────────── */}
           <FadeInOnScroll delay={0.1}>
             <div className="mt-20">
@@ -816,7 +798,7 @@ export default function LandingPage() {
       <div className="max-w-4xl mx-auto px-6">
         <div className="line-glow" />
       </div>
-      
+
 
       {/* ═════════════════════════════════════════════════════
            FEATURES
@@ -1205,7 +1187,7 @@ export default function LandingPage() {
       {/* ═════════════════════════════════════════════════════
            FOOTER
            ═════════════════════════════════════════════════════ */}
-            {/* ═════════════════════════════════════════════════════
+      {/* ═════════════════════════════════════════════════════
            FOOTER
            ═════════════════════════════════════════════════════ */}
       <footer className="py-12 px-8 border-t border-gray-900">
@@ -1336,7 +1318,7 @@ export default function LandingPage() {
                 Viraj Sheoran
               </Link>
             </span>
-          
+
           </div>
         </div>
       </footer>
@@ -1492,9 +1474,8 @@ function PricingRow({
 }) {
   return (
     <div
-      className={`border-b border-gray-800 py-8 grid md:grid-cols-12 gap-6 items-center ${
-        highlighted ? "bg-white/[0.02]" : ""
-      } px-4 -mx-4 rounded-lg`}
+      className={`border-b border-gray-800 py-8 grid md:grid-cols-12 gap-6 items-center ${highlighted ? "bg-white/[0.02]" : ""
+        } px-4 -mx-4 rounded-lg`}
     >
       <div className="md:col-span-2">
         <div className="flex items-center gap-2">
@@ -1529,11 +1510,10 @@ function PricingRow({
             <Link href={buttonLink}>
               <Button
                 size="sm"
-                className={`rounded-full px-6 ${
-                  highlighted
+                className={`rounded-full px-6 ${highlighted
                     ? "bg-white text-black hover:bg-white/90"
                     : "bg-white/10 text-white hover:bg-white/15 border border-white/10"
-                }`}
+                  }`}
               >
                 {buttonText}
                 <ArrowRight className="h-3 w-3 ml-2" />
